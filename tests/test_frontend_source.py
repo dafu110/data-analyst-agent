@@ -33,6 +33,13 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("function renderToolResultNode(result)", source)
         self.assertIn("function renderJobRowNode(job)", source)
 
+    def test_field_role_selector_uses_compact_chinese_labels(self) -> None:
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('["", "不指定"]', source)
+        self.assertIn('["revenue", "收入"]', source)
+        self.assertNotIn('["", "unspecified"]', source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -497,7 +497,7 @@ textarea:focus,
 
 .field-mapping-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 118px;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 132px);
   gap: 8px;
   align-items: center;
   padding: 8px;
@@ -528,6 +528,7 @@ textarea:focus,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+  text-overflow: ellipsis;
 }
 
 .preview-actions,
@@ -1964,7 +1965,7 @@ textarea:focus,
 .chart-scroll svg {
   display: block;
   width: 100%;
-  min-width: 520px;
+  min-width: 0;
 }
 
 .chart-stat-strip {
@@ -2455,7 +2456,7 @@ textarea:focus,
 }
 
 .has-result .field-mapping-row {
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 132px);
   padding: 7px;
 }
 
@@ -3148,6 +3149,10 @@ textarea {
 }
 
 @media (max-width: 1180px) {
+  .has-result .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
   .chart-interaction-toolbar {
     grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr) minmax(150px, 0.7fr);
   }

@@ -948,19 +948,19 @@ function buildFieldRoleOptions(selectedRole) {
 
 function fieldRoleChoices() {
   return [
-    ["", "unspecified"],
-    ["date", "date"],
-    ["region", "region"],
-    ["product", "product"],
-    ["channel", "channel"],
-    ["customer", "customer"],
-    ["order", "order"],
-    ["revenue", "revenue"],
-    ["profit", "profit"],
-    ["cost", "cost"],
-    ["units", "units"],
-    ["discount", "discount"],
-    ["price", "price"],
+    ["", "不指定"],
+    ["date", "日期"],
+    ["region", "地区"],
+    ["product", "产品"],
+    ["channel", "渠道"],
+    ["customer", "客户"],
+    ["order", "订单"],
+    ["revenue", "收入"],
+    ["profit", "利润"],
+    ["cost", "成本"],
+    ["units", "销量"],
+    ["discount", "折扣"],
+    ["price", "价格"],
   ];
 }
 
