@@ -11,6 +11,7 @@ from backend.authz import Principal, can_access_job_scope, has_permission, token
 from backend.rate_limiter import InMemoryRateLimiter
 from backend.server import CONFIG, DataAnalystRequestHandler, markdown_to_html, parse_data_dictionary, result_to_csv_summary
 from backend.exporters import markdown_to_pdf
+import backend.pdf_exporter as pdf_exporter
 from backend.pdf_exporter import normalize_markdown_line
 from backend.production_check import check_python_dependency_versions, version_in_range
 from data_analyst_agent.llm_provider import extract_response_text
@@ -29,10 +30,39 @@ class SecurityControlTests(unittest.TestCase):
         self.assertTrue(pdf.startswith(b"%PDF"))
         self.assertIn(b"ToUnicode", pdf)
         self.assertTrue(
-            any(marker in pdf.lower() for marker in (b"simhei", b"noto", b"dataanalyst")),
+            any(marker in pdf.lower() for marker in (b"simhei", b"noto", b"wqy", b"wenquanyi", b"dataanalyst")),
             "PDF should embed a configured Chinese-capable font.",
         )
         self.assertEqual(normalize_markdown_line("- **收入** `revenue`"), "- 收入 revenue")
+
+    def test_pdf_font_registration_skips_unsupported_candidates(self) -> None:
+        registered: list[str] = []
+
+        class FakeMetrics:
+            @staticmethod
+            def getRegisteredFontNames() -> list[str]:
+                return []
+
+            @staticmethod
+            def registerFont(font) -> None:
+                registered.append(font.path)
+
+        class FakeTTFont:
+            def __init__(self, name: str, path: str) -> None:
+                self.name = name
+                self.path = path
+                if path.endswith("bad.ttc"):
+                    raise RuntimeError("unsupported font")
+
+        def exists_only_for_candidates(self) -> bool:
+            return self.name in {"bad.ttc", "good.ttf"}
+
+        with patch.object(pdf_exporter, "CHINESE_FONT_CANDIDATES", ["bad.ttc", "good.ttf"]):
+            with patch.object(pdf_exporter.Path, "exists", exists_only_for_candidates):
+                font_path = pdf_exporter.register_chinese_font(FakeMetrics, FakeTTFont)
+
+        self.assertEqual(str(font_path), "good.ttf")
+        self.assertEqual(registered, ["good.ttf"])
 
     def test_openai_response_text_extraction(self) -> None:
         text = extract_response_text({"output": [{"content": [{"type": "output_text", "text": "{\"steps\": []}"}]}]})

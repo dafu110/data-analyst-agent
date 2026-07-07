@@ -13,9 +13,9 @@ CHINESE_FONT_CANDIDATES = [
     r"C:\Windows\Fonts\simsun.ttc",
     "/System/Library/Fonts/PingFang.ttc",
     "/System/Library/Fonts/STHeiti Light.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
 ]
 
 
@@ -28,12 +28,9 @@ def markdown_to_pdf(markdown: str) -> bytes:
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("PDF 导出需要安装 reportlab：pip install -e .[prod]") from exc
 
-    font_path = find_chinese_font()
+    font_path = register_chinese_font(pdfmetrics, TTFont)
     if not font_path:
         raise RuntimeError("PDF 导出需要可用中文字体。请安装微软雅黑、黑体、宋体或 Noto Sans CJK 后重试。")
-    if CHINESE_FONT_NAME not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(TTFont(CHINESE_FONT_NAME, str(font_path)))
-
     buffer = BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
@@ -64,6 +61,22 @@ def find_chinese_font() -> Path | None:
         path = Path(candidate)
         if path.exists():
             return path
+    return None
+
+
+def register_chinese_font(pdfmetrics, TTFont) -> Path | None:
+    if CHINESE_FONT_NAME in pdfmetrics.getRegisteredFontNames():
+        return find_chinese_font()
+
+    for candidate in CHINESE_FONT_CANDIDATES:
+        path = Path(candidate)
+        if not path.exists():
+            continue
+        try:
+            pdfmetrics.registerFont(TTFont(CHINESE_FONT_NAME, str(path)))
+        except Exception:
+            continue
+        return path
     return None
 
 
