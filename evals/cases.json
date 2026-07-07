@@ -1,0 +1,78 @@
+[
+  {
+    "id": "sales_profile_happy_path",
+    "dataset": "examples/sales.csv",
+    "goal": "找出销售数据里的关键模式",
+    "expected_behavior": "生成完整的数据画像、分析计划、工具结果、图表和报告。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "happy_path",
+    "assertions": {
+      "min_steps": 4,
+      "required_report_terms": ["数据集画像", "业务字段识别", "数据质量", "关键结论", "数值字段摘要"],
+      "required_step_ids": ["shape", "missingness", "numeric-summary"],
+      "min_charts": 2,
+      "min_insights": 3,
+      "min_semantic_roles": 3,
+      "min_quality_score": 0.8,
+      "min_trace_spans": 4,
+      "require_structured_insights": true
+    }
+  },
+  {
+    "id": "sales_quality_focus",
+    "dataset": "examples/sales.csv",
+    "goal": "重点分析数据质量和缺失值",
+    "expected_behavior": "执行数据质量扫描，并展示缺失值相关发现。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "quality",
+    "assertions": {
+      "min_steps": 3,
+      "required_report_terms": ["业务字段识别", "关键结论", "数据质量扫描", "missing_values"],
+      "required_step_ids": ["missingness"],
+      "min_charts": 1,
+      "min_insights": 3,
+      "min_semantic_roles": 3,
+      "min_quality_score": 0.8,
+      "min_trace_spans": 4,
+      "require_structured_insights": true
+    }
+  },
+  {
+    "id": "monthly_sales_trend",
+    "dataset": "examples/monthly_sales.csv",
+    "goal": "分析销售趋势、区域贡献和产品贡献",
+    "expected_behavior": "识别日期字段，生成时间趋势和分群贡献分析。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "trend",
+    "assertions": {
+      "min_steps": 6,
+      "required_report_terms": ["时间序列摘要", "核心指标时间趋势", "区域与产品分群贡献"],
+      "required_step_ids": ["time-trend", "segment-contribution"],
+      "min_charts": 3,
+      "min_insights": 5,
+      "min_semantic_roles": 4,
+      "min_quality_score": 0.8,
+      "min_trace_spans": 4,
+      "require_structured_insights": true
+    }
+  },
+  {
+    "id": "customer_ops_quality",
+    "dataset": "examples/customer_ops.csv",
+    "goal": "分析客户运营数据质量、渠道和流失风险",
+    "expected_behavior": "发现缺失值和重复行，并识别运营分析意图。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "quality",
+    "assertions": {
+      "min_steps": 4,
+      "required_report_terms": ["存在缺失值风险", "数据质量评分", "分析意图"],
+      "required_step_ids": ["missingness", "numeric-summary"],
+      "min_charts": 2,
+      "min_insights": 5,
+      "min_semantic_roles": 3,
+      "min_quality_score": 0.5,
+      "min_trace_spans": 4,
+      "require_structured_insights": true
+    }
+  }
+]

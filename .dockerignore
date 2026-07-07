@@ -1,0 +1,7 @@
+.git
+.venv
+__pycache__
+*.pyc
+storage
+report.md
+evals/last_results.json

@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>数据分析 Agent 工作台</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <aside class="control-panel" aria-label="分析控制台">
+          <div class="brand-row">
+            <div class="brand-mark" aria-hidden="true"><span></span></div>
+            <div>
+              <h1>Data Analyst Agent</h1>
+              <p>上传数据，生成画像、图表、结论与可导出的业务报告。</p>
+            </div>
+          </div>
+
+          <div class="agent-state-card">
+            <span class="eyebrow">当前状态</span>
+            <strong id="agentStateTitle">等待任务</strong>
+            <small id="agentStateDetail">准备接收 CSV / Excel 数据集</small>
+          </div>
+
+          <form id="analysisForm" class="analysis-form">
+            <section class="source-panel" aria-label="数据源">
+              <div class="section-heading compact-heading">
+                <h3>数据源</h3>
+                <span>当前支持文件上传</span>
+              </div>
+              <div class="segmented-control">
+                <button class="segment active" type="button" data-source-mode="file">文件</button>
+                <button class="segment segment-soon" type="button" data-source-mode="database" aria-describedby="sourceHint">数据库<span>即将支持</span></button>
+                <button class="segment segment-soon" type="button" data-source-mode="sheet" aria-describedby="sourceHint">在线表格<span>即将支持</span></button>
+                <button class="segment segment-soon" type="button" data-source-mode="api" aria-describedby="sourceHint">API<span>即将支持</span></button>
+              </div>
+              <p id="sourceHint" class="helper-copy">上传 CSV / Excel 后可继续确认字段口径。</p>
+            </section>
+
+            <label class="field-label primary-field-label" for="dataset">数据文件</label>
+            <label class="file-drop" for="dataset">
+              <input id="dataset" name="dataset" type="file" accept=".csv,.xlsx,.xls,text/csv" required>
+              <span class="file-icon" aria-hidden="true"></span>
+              <span>
+                <strong id="fileName">选择或拖入 CSV / Excel</strong>
+                <small>建议小于 10 MB，Excel 会自动识别主表。</small>
+              </span>
+            </label>
+
+            <section id="dataPreview" class="data-preview hidden" aria-live="polite">
+              <div class="section-heading">
+                <h3>数据预览与字段确认</h3>
+                <span id="previewMeta">未读取</span>
+              </div>
+              <div id="fieldMappingList" class="field-mapping-list"></div>
+              <div id="fieldConfidenceSummary" class="confidence-panel">
+                <strong>字段口径确认</strong>
+                <p>上传后会根据列名和样本值推测日期、收入、渠道、客户等业务角色；低置信度字段建议手动确认。</p>
+              </div>
+              <div class="preview-actions">
+                <button id="applyFieldMapping" class="secondary-action" type="button">应用字段说明</button>
+                <button id="clearFieldMapping" class="secondary-action" type="button">清空字段说明</button>
+              </div>
+              <div id="previewTable" class="preview-table"></div>
+            </section>
+
+            <label class="field-label primary-field-label" for="goal">分析目标</label>
+            <section class="quickstart-panel inline-quickstart" aria-label="快速目标模板">
+              <div class="template-grid">
+                <button class="template-chip" type="button" data-goal-template="找出销售额、订单数、客单价的变化趋势，并给出增长建议。">销售复盘</button>
+                <button class="template-chip" type="button" data-goal-template="检查数据缺失、重复、异常值和字段口径风险，输出修复优先级。">质量体检</button>
+                <button class="template-chip" type="button" data-goal-template="按渠道、地区、产品分组分析贡献度，找出最值得投入的业务方向。">贡献分析</button>
+              </div>
+            </section>
+            <textarea id="goal" name="goal" rows="5">找出这个数据集里的关键模式、数据质量问题和下一步业务建议。</textarea>
+
+            <section class="preflight-panel" id="preflightPanel" aria-label="执行前确认">
+              <div class="section-heading compact-heading">
+                <h3>执行前确认</h3>
+                <span>可调整</span>
+              </div>
+              <label class="check-row"><input type="checkbox" checked> 生成数据画像和质量门禁</label>
+              <label class="check-row"><input type="checkbox" checked> 自动规划 SQL / Python 分析步骤</label>
+              <label class="check-row"><input type="checkbox" checked> 为每条洞察附带依据、口径和置信度</label>
+              <label class="check-row"><input type="checkbox"> 先暂停，等我确认计划后再执行高影响分析</label>
+            </section>
+
+            <button class="primary-action" type="submit">
+              <span class="action-icon" aria-hidden="true"></span>
+              <strong>开始分析</strong>
+            </button>
+            <button id="useExampleData" class="secondary-action example-action" type="button">用示例销售数据体验</button>
+
+            <details class="settings-disclosure business-disclosure">
+              <summary>
+                <span>分析配置</span>
+                <small>场景 / 受众 / 深度</small>
+              </summary>
+              <div class="settings-body">
+                <label class="field-label" for="businessScenario">业务场景</label>
+                <select id="businessScenario" class="text-input" name="business_scenario">
+                  <option value="general">通用经营分析</option>
+                  <option value="sales">销售经营分析</option>
+                  <option value="ecommerce">电商经营分析</option>
+                  <option value="content">内容运营分析</option>
+                  <option value="finance">财务经营分析</option>
+                  <option value="customer">客户运营分析</option>
+                  <option value="marketing">投放与增长分析</option>
+                </select>
+                <div class="config-grid">
+                  <label>
+                    <span class="field-label">报告受众</span>
+                    <select id="reportAudience" class="text-input" name="report_audience">
+                      <option value="operator">运营执行者</option>
+                      <option value="manager">业务负责人</option>
+                      <option value="executive">管理层</option>
+                      <option value="client">客户汇报</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span class="field-label">分析深度</span>
+                    <select id="analysisDepth" class="text-input" name="analysis_depth">
+                      <option value="quick">快速诊断</option>
+                      <option value="standard" selected>标准分析</option>
+                      <option value="deep">深度复盘</option>
+                    </select>
+                  </label>
+                </div>
+                <label class="field-label" for="deliveryFormat">交付格式</label>
+                <select id="deliveryFormat" class="text-input" name="delivery_format">
+                  <option value="business_report" selected>业务报告</option>
+                  <option value="executive_brief">管理摘要</option>
+                  <option value="diagnostic">诊断清单</option>
+                </select>
+              </div>
+            </details>
+
+            <details class="settings-disclosure dictionary-disclosure">
+              <summary>
+                <span>字段字典</span>
+                <small>可选 JSON</small>
+              </summary>
+              <div class="settings-body">
+                <label class="field-label" for="dataDictionary">字段角色映射</label>
+                <textarea id="dataDictionary" name="data_dictionary" rows="4" placeholder='{"订单日期":"date","销售额":"revenue","渠道":"channel"}'></textarea>
+              </div>
+            </details>
+
+            <details class="settings-disclosure access-disclosure">
+              <summary>
+                <span>访问与权限</span>
+                <small>本地默认</small>
+              </summary>
+              <div class="settings-body">
+                <label class="field-label" for="actor">用户 / 租户标识</label>
+                <input id="actor" class="text-input" name="actor" type="text" value="local" autocomplete="off">
+                <label class="field-label" for="organizationName">组织</label>
+                <input id="organizationName" class="text-input" name="organization" type="text" value="default" autocomplete="off">
+                <label class="field-label" for="role">角色</label>
+                <select id="role" class="text-input" name="role">
+                  <option value="analyst">分析师</option>
+                  <option value="viewer">只读查看者</option>
+                  <option value="admin">管理员</option>
+                </select>
+                <label class="field-label" for="workspaceName">工作区</label>
+                <input id="workspaceName" class="text-input" name="workspace" type="text" value="default" autocomplete="off">
+                <label class="field-label" for="apiToken">API Token</label>
+                <input id="apiToken" class="text-input" name="apiToken" type="password" placeholder="本地运行可留空" autocomplete="off">
+              </div>
+            </details>
+          </form>
+
+          <details class="guardrail-box">
+            <summary>
+              <span class="status-dot"></span>
+              <strong>安全执行已开启</strong>
+            </summary>
+            <p>SQL 仅允许 SELECT；Python 沙箱限制文件写入、import、eval 和 exec。</p>
+          </details>
+        </aside>
+
+        <section class="result-panel">
+          <header class="topbar">
+            <div>
+              <span class="eyebrow">Agent 工作台</span>
+              <h2 id="taskTitle">等待数据集</h2>
+            </div>
+            <div class="topbar-actions">
+              <div id="runStatus" class="run-status idle">Idle</div>
+            </div>
+          </header>
+
+          <section class="agent-command-bar" aria-label="Agent 执行状态">
+            <article class="command-card primary-command">
+              <span class="command-label">当前行动</span>
+              <strong id="currentActionLabel">等待数据集</strong>
+              <p id="currentActionDetail">上传文件并确认目标后，Agent 会生成计划、执行工具并产出报告。</p>
+            </article>
+            <article class="command-card">
+              <span class="command-label">下一步</span>
+              <strong id="nextActionLabel">上传数据</strong>
+              <p>支持 CSV / Excel，建议先确认日期、金额、渠道等关键字段。</p>
+            </article>
+            <div class="stage-rail" aria-label="执行阶段">
+              <span class="stage-pill active" data-stage="intake">接收</span>
+              <span class="stage-pill" data-stage="plan">计划</span>
+              <span class="stage-pill" data-stage="execute">执行</span>
+              <span class="stage-pill" data-stage="verify">验证</span>
+              <span class="stage-pill" data-stage="deliver">交付</span>
+            </div>
+          </section>
+
+          <section class="agent-transparency-panel" aria-label="Agent 判断与人工介入">
+            <article class="transparency-card reasoning-card">
+              <span class="command-label">Agent 正在判断</span>
+              <ul id="agentReasoningList" class="reasoning-list">
+                <li>等待数据上传和分析目标。</li>
+                <li>上传后会先检查字段口径、质量风险和可用指标。</li>
+              </ul>
+            </article>
+            <article class="transparency-card">
+              <span class="command-label">下一个动作</span>
+              <strong id="agentNextStepTitle">上传数据并确认目标</strong>
+              <p id="agentNextStepDetail">Agent 会在执行前生成分析计划，并在结果中标出证据、置信度和建议复核的地方。</p>
+            </article>
+            <article class="transparency-card intervention-card" id="interventionCard">
+              <span class="command-label">你何时介入</span>
+              <strong id="interventionTitle">上传前确认目标即可</strong>
+              <p id="interventionDetail">如果字段口径不清楚或分析目标变化，先补充字段字典和目标。</p>
+              <div class="intervention-actions">
+                <button id="reviewPlanShortcut" class="secondary-action" type="button">查看计划</button>
+                <button id="askDetailShortcut" class="secondary-action" type="button">追问细节</button>
+                <button id="cancelFromState" class="secondary-action danger-action hidden" type="button">取消任务</button>
+              </div>
+            </article>
+          </section>
+
+          <section id="emptyState" class="empty-state startup-panel">
+            <div class="startup-heading">
+              <div>
+                <span class="eyebrow">准备分析</span>
+                <h3>上传数据后，Agent 会先给出计划，再执行分析链路。</h3>
+              </div>
+              <div class="startup-actions">
+                <button id="emptyUseExampleData" class="secondary-action" type="button">用示例数据体验</button>
+                <span class="startup-badge">Ready</span>
+              </div>
+            </div>
+            <div class="startup-grid">
+              <article class="startup-card">
+                <span class="startup-icon profile-icon" aria-hidden="true"></span>
+                <strong>数据画像</strong>
+                <small>字段、类型、缺失、分布</small>
+              </article>
+              <article class="startup-card">
+                <span class="startup-icon quality-icon" aria-hidden="true"></span>
+                <strong>质量门禁</strong>
+                <small>异常、重复、口径风险</small>
+              </article>
+              <article class="startup-card">
+                <span class="startup-icon insight-icon" aria-hidden="true"></span>
+                <strong>业务洞察</strong>
+                <small>趋势、分群、贡献、机会</small>
+              </article>
+              <article class="startup-card">
+                <span class="startup-icon report-icon" aria-hidden="true"></span>
+                <strong>报告交付</strong>
+                <small>Markdown / HTML / CSV / PDF / PPT</small>
+              </article>
+            </div>
+            <div class="startup-rail" aria-hidden="true">
+              <span>接收数据</span><i></i><span>生成计划</span><i></i><span>执行工具</span><i></i><span>验证交付</span>
+            </div>
+          </section>
+
+          <section id="errorState" class="error-state hidden"></section>
+
+          <section id="recoveryPanel" class="recovery-panel hidden" aria-label="恢复操作">
+            <div>
+              <strong>可以从这里恢复</strong>
+              <p>检查文件格式、字段字典或权限配置后，直接用当前设置重试；也可以清空错误继续调整。</p>
+            </div>
+            <div class="recovery-actions">
+              <button id="retryWithCurrentSettings" class="secondary-action" type="button">用当前设置重试</button>
+              <button id="clearErrorAction" class="secondary-action" type="button">清空错误</button>
+            </div>
+          </section>
+
+          <nav class="tabs" aria-label="结果视图">
+            <button class="tab active" type="button" data-tab="overview">总览</button>
+            <button class="tab" type="button" data-tab="timeline">时间线</button>
+            <button class="tab" type="button" data-tab="charts">图表</button>
+            <button class="tab" type="button" data-tab="report">报告</button>
+            <button class="tab" type="button" data-tab="followup">追问</button>
+            <button class="tab" type="button" data-tab="jobs">历史</button>
+            <button class="tab" type="button" data-tab="ops">运行指标</button>
+            <details class="advanced-tabs">
+              <summary>高级</summary>
+              <button class="tab" type="button" data-tab="plan">分析计划</button>
+              <button class="tab" type="button" data-tab="trace">Trace</button>
+              <button class="tab" type="button" data-tab="results">工具结果</button>
+            </details>
+          </nav>
+
+          <section id="overview" class="tab-panel active">
+            <div class="metric-grid" id="metricGrid"></div>
+            <section class="section-block plan-approval-block hidden" id="planApprovalBlock">
+              <div class="section-heading"><h3>分析计划确认</h3><span id="planApprovalStatus">待确认</span></div>
+              <div id="planApprovalSummary" class="plan-approval-grid"></div>
+              <div class="plan-approval-actions">
+                <button id="approvePlanAction" class="primary-action compact-inline-action" type="button"><span aria-hidden="true">&gt;</span><strong>批准执行</strong></button>
+                <button id="editGoalAction" class="secondary-action" type="button">编辑目标</button>
+                <button id="cancelPlanAction" class="secondary-action danger-action" type="button">取消任务</button>
+              </div>
+            </section>
+            <section class="section-block decision-brief hidden" id="decisionBriefBlock">
+              <div class="section-heading"><h3>先看这三件事</h3><span id="decisionBriefStatus">待生成</span></div>
+              <div id="decisionBriefGrid" class="decision-brief-grid"></div>
+            </section>
+            <section class="section-block trust-block" id="trustEvidenceBlock">
+              <div class="section-heading"><h3>可信度与人工复核</h3><span id="trustScoreLabel">待生成</span></div>
+              <div class="trust-grid">
+                <article><strong>依据</strong><p>洞察会绑定字段、样本范围、计算结果和图表来源。</p></article>
+                <article><strong>口径</strong><p>收入、日期、客户、渠道等关键字段会显示识别角色和置信度。</p></article>
+                <article><strong>复核</strong><p>低置信度、缺字段或异常结果会标记为建议人工复核。</p></article>
+              </div>
+            </section>
+            <section class="section-block current-job hidden" id="currentJob">
+              <div class="section-heading"><h3>当前任务</h3><span id="jobIdLabel"></span></div>
+              <p id="jobSummary"></p>
+            </section>
+            <section class="section-block agent-activity-block hidden" id="agentActivityBlock">
+              <div class="section-heading"><h3>Agent 活动</h3><span id="agentActivityCount">0</span></div>
+              <ol id="agentActivityList" class="activity-list"></ol>
+            </section>
+            <section class="section-block review-block hidden" id="humanReviewBlock">
+              <div class="section-heading"><h3>需要你介入的点</h3><span id="humanReviewStatus">待分析</span></div>
+              <div id="humanReviewList" class="review-list"></div>
+            </section>
+            <section class="section-block hidden" id="executiveSummaryBlock">
+              <div class="section-heading"><h3>管理层摘要</h3><span id="executiveConfidence">0%</span></div>
+              <div id="executiveSummaryContent" class="executive-summary"></div>
+            </section>
+            <section class="section-block hidden" id="qualityGateBlock">
+              <div class="section-heading"><h3>分析质量门禁</h3><span id="qualityGateCount">0</span></div>
+              <div id="qualityGateList" class="quality-gate-list"></div>
+            </section>
+            <section class="section-block insight-block hidden" id="insightBlock">
+              <div class="section-heading"><h3>关键结论</h3><span id="insightCount">0</span></div>
+              <div id="insightList" class="insight-list"></div>
+            </section>
+            <section class="section-block semantic-block hidden" id="semanticBlock">
+              <div class="section-heading"><h3>业务字段识别</h3><span id="semanticCount">0</span></div>
+              <div id="semanticList" class="chip-list"></div>
+            </section>
+            <section class="section-block hidden" id="questionBlock">
+              <div class="section-heading"><h3>推荐追问</h3><span id="questionCount">0</span></div>
+              <div id="questionList" class="suggestion-row"></div>
+            </section>
+            <section class="section-block hidden" id="actionBlock">
+              <div class="section-heading"><h3>下一步行动</h3><span id="actionCount">0</span></div>
+              <div id="actionList" class="action-list"></div>
+            </section>
+            <section class="section-block hidden" id="metricDefinitionBlock">
+              <div class="section-heading"><h3>指标口径</h3><span id="metricDefinitionCount">0</span></div>
+              <div id="metricDefinitionList" class="definition-list"></div>
+            </section>
+            <div class="split-grid">
+              <section class="section-block">
+                <div class="section-heading"><h3>数据质量</h3><span id="qualityCount">0</span></div>
+                <ul id="qualityList" class="plain-list"></ul>
+              </section>
+              <section class="section-block">
+                <div class="section-heading"><h3>字段</h3><span id="columnCount">0</span></div>
+                <div id="columnList" class="chip-list"></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="timeline" class="tab-panel"><ol id="jobTimeline" class="timeline"></ol></section>
+          <section id="charts" class="tab-panel"><div id="chartGrid" class="chart-grid"></div></section>
+
+          <section id="report" class="tab-panel">
+            <section class="section-block export-check-panel" id="exportCheckPanel">
+              <div class="section-heading"><h3>导出前预检</h3><span id="exportReadinessLabel">未生成报告</span></div>
+              <div id="exportCheckList" class="export-check-list"></div>
+            </section>
+            <section class="section-block export-preset-panel">
+              <div class="section-heading"><h3>报告模板</h3><span>一键切换受众</span></div>
+              <div class="template-grid">
+                <button class="template-chip" type="button" data-export-preset="executive">老板版摘要</button>
+                <button class="template-chip" type="button" data-export-preset="client">客户汇报</button>
+                <button class="template-chip" type="button" data-export-preset="diagnostic">诊断清单</button>
+              </div>
+            </section>
+            <div class="report-toolbar">
+              <button id="copyReport" class="secondary-action" type="button">复制</button>
+              <button id="downloadReport" class="secondary-action" type="button">Markdown</button>
+              <button id="downloadHtmlReport" class="secondary-action" type="button">HTML</button>
+              <button id="downloadCsvReport" class="secondary-action" type="button">CSV</button>
+              <button id="downloadPdfReport" class="secondary-action" type="button">PDF</button>
+              <button id="downloadPptReport" class="secondary-action" type="button">PPT</button>
+              <button id="cancelJob" class="secondary-action danger-action hidden" type="button">取消任务</button>
+            </div>
+            <pre id="reportText" class="report-text"></pre>
+          </section>
+
+          <section id="followup" class="tab-panel">
+            <section class="section-block">
+              <div class="section-heading"><h3>基于当前报告追问</h3><span id="followupJobLabel">未选择任务</span></div>
+              <div id="suggestedQuestions" class="suggestion-row"></div>
+              <form id="followupForm" class="followup-form">
+                <textarea id="followupQuestion" rows="3" placeholder="例如：数据质量有什么风险？下一步优先做什么？"></textarea>
+                <button class="primary-action compact-action" type="submit"><span aria-hidden="true">&gt;</span><strong>发送追问</strong></button>
+              </form>
+              <div id="followupAnswer" class="followup-answer muted-copy">选择一个已完成任务后，可以围绕报告继续追问。</div>
+            </section>
+          </section>
+
+          <section id="jobs" class="tab-panel">
+            <div class="asset-toolbar">
+              <label>
+                <span class="field-label">搜索历史</span>
+                <input id="jobSearchInput" class="text-input compact-input" type="search" placeholder="数据集 / 目标 / 任务 ID">
+              </label>
+              <label>
+                <span class="field-label">状态</span>
+                <select id="jobStatusFilter" class="text-input compact-input">
+                  <option value="all">全部</option>
+                  <option value="completed">已完成</option>
+                  <option value="running">运行中</option>
+                  <option value="failed">失败</option>
+                </select>
+              </label>
+              <button id="refreshJobs" class="secondary-action" type="button">刷新任务</button>
+            </div>
+            <div id="reportHistory" class="history-grid"></div>
+            <div id="jobList" class="job-list"></div>
+
+          <section class="section-block collaboration-panel">
+            <div class="section-heading"><h3>协作与审计</h3><span>团队使用</span></div>
+            <div class="trust-grid">
+              <article><strong>共享报告</strong><p>导出前可按组织、工作区和角色控制访问范围。</p></article>
+              <article><strong>口径确认</strong><p>关键字段、分析计划和导出动作保留确认痕迹。</p></article>
+              <article><strong>复用任务</strong><p>历史任务可作为新任务模板，减少重复配置。</p></article>
+            </div>
+          </section>
+          </section>
+
+          <section id="ops" class="tab-panel">
+            <div class="report-toolbar"><button id="refreshMetrics" class="secondary-action" type="button">刷新指标</button></div>
+            <div id="opsMetricGrid" class="metric-grid"></div>
+            <section class="section-block">
+              <div class="section-heading"><h3>状态分布</h3><span id="statusTotal">0</span></div>
+              <div id="statusBreakdown" class="status-breakdown"></div>
+            </section>
+          </section>
+
+          <section id="plan" class="tab-panel"><ol id="planList" class="timeline"></ol></section>
+          <section id="trace" class="tab-panel"><ol id="traceList" class="timeline"></ol></section>
+          <section id="results" class="tab-panel"><div id="toolResults" class="tool-results"></div></section>
+        </section>
+      </section>
+    </main>
+
+    <script src="/renderers.js"></script>
+    <script src="/state.js"></script>
+    <script src="/api.js"></script>
+    <script src="/exports.js"></script>
+    <script src="/charts.js"></script>
+    <script src="/jobs.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

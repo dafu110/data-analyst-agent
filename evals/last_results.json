@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "id": "sales_profile_happy_path",
+      "risk_tag": "happy_path",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 45.26,
+      "steps": 10,
+      "charts": 5,
+      "insights": 13,
+      "semantic_roles": 5,
+      "quality_score": 1.0,
+      "trace_spans": 7
+    },
+    {
+      "id": "sales_quality_focus",
+      "risk_tag": "quality",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 30.44,
+      "steps": 10,
+      "charts": 5,
+      "insights": 13,
+      "semantic_roles": 5,
+      "quality_score": 1.0,
+      "trace_spans": 7
+    },
+    {
+      "id": "monthly_sales_trend",
+      "risk_tag": "trend",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 38.98,
+      "steps": 11,
+      "charts": 6,
+      "insights": 16,
+      "semantic_roles": 7,
+      "quality_score": 1.0,
+      "trace_spans": 7
+    },
+    {
+      "id": "customer_ops_quality",
+      "risk_tag": "quality",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 37.78,
+      "steps": 7,
+      "charts": 6,
+      "insights": 11,
+      "semantic_roles": 5,
+      "quality_score": 0.9617,
+      "trace_spans": 7
+    }
+  ]
+}

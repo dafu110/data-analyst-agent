@@ -1,0 +1,13 @@
+date,region,product,channel,units,revenue,discount
+2026-01-01,East,Notebook,Online,12,2400,0.04
+2026-02-01,East,Notebook,Online,15,3100,0.05
+2026-03-01,East,Notebook,Retail,11,2200,0.02
+2026-04-01,West,Desk,Retail,6,4200,0.01
+2026-05-01,West,Desk,Online,5,3900,0.03
+2026-06-01,South,Pen,Online,90,900,0.10
+2026-07-01,South,Pen,Retail,100,980,0.12
+2026-08-01,North,Notebook,Online,18,3600,0.04
+2026-09-01,North,Desk,Retail,7,5100,0.00
+2026-10-01,East,Pen,Online,120,1300,0.15
+2026-11-01,West,Notebook,Online,20,4400,0.05
+2026-12-01,East,Desk,Retail,8,5600,0.02

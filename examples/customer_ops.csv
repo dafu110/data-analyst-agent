@@ -1,0 +1,11 @@
+signup_date,channel,customer_segment,orders,revenue,churned
+2026-01-03,Ads,SMB,4,1200,false
+2026-01-08,Ads,SMB,4,1200,false
+2026-02-11,Referral,Enterprise,2,9000,false
+2026-03-15,Organic,SMB,,800,true
+2026-04-21,Organic,MidMarket,3,2400,false
+2026-05-09,Ads,MidMarket,1,700,true
+2026-06-13,Referral,Enterprise,5,14000,false
+2026-06-13,Referral,Enterprise,5,14000,false
+2026-07-22,Organic,SMB,2,,true
+2026-08-30,Ads,SMB,1,500,true

@@ -1,0 +1,11 @@
+region,product,units,revenue,discount
+North,Notebook,12,2400,0.05
+North,Pen,80,400,0.00
+South,Notebook,9,1800,0.10
+South,Pen,60,300,0.00
+East,Notebook,15,3150,0.03
+East,Pen,90,450,0.00
+West,Notebook,7,1470,0.08
+West,Pen,55,275,0.00
+West,Desk,4,1600,0.12
+East,Desk,6,2520,0.07

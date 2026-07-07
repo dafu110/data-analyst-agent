@@ -1,0 +1,34 @@
+[project]
+name = "data-analyst-agent"
+version = "0.1.0"
+description = "A guarded MVP data analysis agent for CSV datasets."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+prod = [
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.30",
+  "psycopg[binary]>=3.2",
+  "redis>=5.0",
+  "rq>=1.16",
+  "openpyxl>=3.1",
+  "sqlalchemy>=2.0",
+  "reportlab>=4.0",
+  "python-pptx>=0.6.23",
+  "protobuf>=5.26.1,<6.0dev",
+]
+
+[project.scripts]
+data-analyst-agent = "data_analyst_agent.cli:main"
+data-analyst-agent-web = "backend.server:main"
+data-analyst-agent-fastapi = "backend.fastapi_app:main"
+data-analyst-agent-worker = "backend.worker:main"
+data-analyst-agent-check = "backend.production_check:main"
+
+[tool.setuptools.packages.find]
+include = ["data_analyst_agent*", "backend*"]
+exclude = ["tests*", "evals*", "frontend*", "storage*", "docker*"]
