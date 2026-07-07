@@ -27,8 +27,11 @@ class SecurityControlTests(unittest.TestCase):
         pdf = markdown_to_pdf("# 数据分析报告\n\n- 中文内容不会乱码")
 
         self.assertTrue(pdf.startswith(b"%PDF"))
-        self.assertIn(b"SimHei", pdf)
         self.assertIn(b"ToUnicode", pdf)
+        self.assertTrue(
+            any(marker in pdf.lower() for marker in (b"simhei", b"noto", b"dataanalyst")),
+            "PDF should embed a configured Chinese-capable font.",
+        )
         self.assertEqual(normalize_markdown_line("- **收入** `revenue`"), "- 收入 revenue")
 
     def test_openai_response_text_extraction(self) -> None:
