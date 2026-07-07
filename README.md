@@ -2,6 +2,10 @@
 
 一个中文数据分析 Agent / SaaS 原型，用于上传 CSV、Excel 或连接数据库后，自动完成数据画像、字段识别、质量检查、图表建议、业务洞察、报告导出和追问分析。
 
+## 界面截图
+
+![Data Analyst Agent 中文工作台](docs/assets/data-analyst-agent-workbench.png)
+
 ## 当前能力
 
 - 上传 CSV、Excel，多 sheet Excel 会自动选择主表并保留表结构信息

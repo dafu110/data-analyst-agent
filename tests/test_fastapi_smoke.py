@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import time
 import unittest
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 
 class FastApiSmokeTests(unittest.TestCase):
@@ -52,6 +54,72 @@ class FastApiSmokeTests(unittest.TestCase):
             )
             self.assertEqual(export_response.status_code, 200, export_response.text[:200])
             self.assertGreater(len(export_response.content), 100)
+
+    def test_fastapi_rejects_oversized_upload_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except Exception:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        with patch.object(fastapi_app, "CONFIG", replace(fastapi_app.CONFIG, max_upload_bytes=8)):
+            client = TestClient(fastapi_app.create_app())
+            response = client.post(
+                "/api/analyze",
+                files={"dataset": ("large.csv", b"col\n" + b"1\n" * 10, "text/csv")},
+                data={"goal": "测试大文件限制"},
+                headers={"X-Actor": "large-file", "X-Role": "analyst"},
+            )
+
+        self.assertEqual(response.status_code, 413, response.text)
+
+    def test_fastapi_rejects_unsupported_file_without_creating_job_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except Exception:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        client = TestClient(fastapi_app.create_app())
+        response = client.post(
+            "/api/analyze",
+            files={"dataset": ("notes.txt", b"not a dataset", "text/plain")},
+            data={"goal": "测试错误文件"},
+            headers={"X-Actor": "bad-file", "X-Role": "analyst"},
+        )
+
+        self.assertEqual(response.status_code, 400, response.text)
+
+    def test_fastapi_rejects_actor_active_job_quota_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except Exception:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        client = TestClient(fastapi_app.create_app())
+        with patch.object(
+            fastapi_app.JOB_STORE,
+            "active_count_for_actor",
+            return_value=fastapi_app.CONFIG.max_active_jobs_per_actor,
+        ):
+            response = client.post(
+                "/api/analyze",
+                files={"dataset": ("sales.csv", b"region,revenue\nNorth,10\n", "text/csv")},
+                data={"goal": "测试并发配额"},
+                headers={"X-Actor": "quota", "X-Role": "analyst"},
+            )
+
+        self.assertEqual(response.status_code, 429, response.text)
 
 
 if __name__ == "__main__":

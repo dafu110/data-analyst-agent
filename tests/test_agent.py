@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import unittest
 from pathlib import Path
+import time
+import unittest
 
 import pandas as pd
 
@@ -38,6 +39,14 @@ class DataAnalystAgentTests(unittest.TestCase):
         self.assertIn("业务字段识别", result.report_markdown)
         self.assertIn("数据质量评分", result.report_markdown)
         self.assertIn("分析质量门禁", result.report_markdown)
+
+    def test_small_dataset_analysis_stays_within_performance_budget(self) -> None:
+        started = time.monotonic()
+        result = DataAnalystAgent().analyze_csv(ROOT / "examples" / "sales.csv", "分析销售数据")
+        duration = time.monotonic() - started
+
+        self.assertEqual(result.profile.rows, 10)
+        self.assertLess(duration, 10)
 
     def test_data_dictionary_overrides_semantic_roles(self) -> None:
         result = DataAnalystAgent().analyze_csv(

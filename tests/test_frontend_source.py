@@ -29,9 +29,14 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("toolResults.replaceChildren(", source)
         self.assertIn("jobTimeline.replaceChildren(", source)
         self.assertIn("jobList.replaceChildren(", source)
+        self.assertIn("planApprovalSummary.replaceChildren(", source)
+        self.assertIn("opsMetricGrid.replaceChildren(", source)
+        self.assertIn("insightList.replaceChildren(", source)
+        self.assertIn("actionList.replaceChildren(", source)
         self.assertIn("function createChip(value)", source)
         self.assertIn("function renderToolResultNode(result)", source)
         self.assertIn("function renderJobRowNode(job)", source)
+        self.assertIn("function renderActionItemNode(item)", source)
 
     def test_field_role_selector_uses_compact_chinese_labels(self) -> None:
         source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
@@ -48,6 +53,14 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("agent-detail-disclosure", index)
         self.assertIn('removeAttribute("open")', source)
         self.assertIn(".has-result .agent-detail-disclosure:not([open]) .agent-transparency-panel", styles)
+
+    def test_initial_state_hides_workbench_controls_until_dataset_exists(self) -> None:
+        styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("body:not(.has-dataset):not(.has-result) .agent-command-bar", styles)
+        self.assertIn("body:not(.has-dataset):not(.has-result) .source-panel", styles)
+        self.assertIn("body:not(.has-dataset):not(.has-result) .preflight-panel", styles)
+        self.assertIn("body:not(.has-dataset):not(.has-result) .tabs", styles)
 
 
 if __name__ == "__main__":

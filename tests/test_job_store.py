@@ -81,6 +81,21 @@ class JobStoreTests(unittest.TestCase):
         finally:
             store.close()
 
+    def test_failed_jobs_do_not_hold_active_capacity(self) -> None:
+        TEST_DB_DIR.mkdir(parents=True, exist_ok=True)
+        store = JobStore(TEST_DB_DIR / f"{uuid.uuid4().hex}.sqlite3")
+        try:
+            job = store.create("broken.csv", "Find patterns", owner="alice", organization="acme")
+            store.set_running(job.id, "Running")
+            self.assertEqual(store.active_count_for_actor("alice", "acme"), 1)
+
+            store.fail(job.id, "Bad dataset")
+
+            self.assertEqual(store.active_count_for_actor("alice", "acme"), 0)
+            self.assertEqual(store.metrics(owner="alice", organization="acme")["failed_jobs"], 1)
+        finally:
+            store.close()
+
     def test_jobs_are_scoped_by_organization_and_workspace(self) -> None:
         TEST_DB_DIR.mkdir(parents=True, exist_ok=True)
         store = JobStore(TEST_DB_DIR / f"{uuid.uuid4().hex}.sqlite3")

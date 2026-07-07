@@ -110,6 +110,13 @@ class ProductionAdapterTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertIn("/api/metrics.prometheus", script.read_text(encoding="utf-8"))
 
+    def test_production_e2e_runbook_documents_socket_boundary(self) -> None:
+        runbook = (ROOT / "docs" / "PRODUCTION_E2E_CHECK.zh-CN.md").read_text(encoding="utf-8")
+
+        self.assertIn("只有 worker 挂载 Docker socket", runbook)
+        self.assertIn("API 不持有 Docker socket", runbook)
+        self.assertIn("python scripts/production_e2e_check.py", runbook)
+
     def test_database_connector_rejects_unsafe_queries_and_hosts(self) -> None:
         validate_readonly_query("select * from orders")
         with self.assertRaises(ValueError):

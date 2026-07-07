@@ -308,6 +308,42 @@ h1 {
   gap: 11px;
 }
 
+body:not(.has-dataset):not(.has-result) .control-panel {
+  padding-bottom: 18px;
+}
+
+body:not(.has-dataset):not(.has-result) .agent-state-card {
+  display: none;
+}
+
+body:not(.has-dataset):not(.has-result) .source-panel,
+body:not(.has-dataset):not(.has-result) .preflight-panel,
+body:not(.has-dataset):not(.has-result) .guardrail-box,
+body:not(.has-dataset):not(.has-result) .settings-disclosure {
+  display: none;
+}
+
+body:not(.has-dataset):not(.has-result) .brand-row {
+  margin-bottom: 18px;
+}
+
+body:not(.has-dataset):not(.has-result) .analysis-form {
+  gap: 14px;
+}
+
+body:not(.has-dataset):not(.has-result) .file-drop {
+  min-height: 86px;
+  background: #fbfdff;
+}
+
+body:not(.has-dataset):not(.has-result) .inline-quickstart {
+  padding: 0;
+}
+
+body:not(.has-dataset):not(.has-result) .template-grid {
+  grid-template-columns: 1fr;
+}
+
 .field-label {
   color: #34424c;
   font-size: 13px;
@@ -1156,6 +1192,34 @@ textarea:focus,
 .startup-panel {
   display: grid;
   gap: 16px;
+}
+
+body:not(.has-dataset):not(.has-result) .startup-panel {
+  gap: 18px;
+  padding: 22px;
+}
+
+body:not(.has-dataset):not(.has-result) .startup-heading {
+  align-items: center;
+}
+
+body:not(.has-dataset):not(.has-result) .startup-heading h3 {
+  max-width: 720px;
+  font-size: 22px;
+}
+
+body:not(.has-dataset):not(.has-result) .startup-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+body:not(.has-dataset):not(.has-result) .startup-card {
+  min-height: 96px;
+  box-shadow: none;
+}
+
+body:not(.has-dataset):not(.has-result) .startup-rail {
+  margin-top: 0;
+  padding-top: 2px;
 }
 
 .startup-heading {
@@ -2750,6 +2814,10 @@ textarea:focus,
 }
 
 @media (max-width: 1180px) {
+  body:not(.has-dataset):not(.has-result) .startup-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .has-result #overview.active {
     grid-template-columns: 1fr;
   }
@@ -2799,6 +2867,15 @@ textarea:focus,
 }
 
 @media (max-width: 560px) {
+  body:not(.has-dataset):not(.has-result) .startup-grid,
+  body:not(.has-dataset):not(.has-result) .template-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body:not(.has-dataset):not(.has-result) .startup-heading {
+    align-items: flex-start;
+  }
+
   .has-dataset .control-panel,
   .has-result .control-panel {
     margin-bottom: 12px;
@@ -3063,6 +3140,20 @@ textarea {
 .stage-pill {
   min-width: 0;
   white-space: nowrap;
+}
+
+body:not(.has-dataset):not(.has-result) .agent-command-bar,
+body:not(.has-dataset):not(.has-result) .result-detail-disclosure,
+body:not(.has-dataset):not(.has-result) .tabs {
+  display: none;
+}
+
+body:not(.has-dataset):not(.has-result) .topbar {
+  min-height: 72px;
+}
+
+body:not(.has-dataset):not(.has-result) .empty-state {
+  margin: 18px;
 }
 
 .tabs {

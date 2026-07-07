@@ -443,30 +443,9 @@ function showPlanApproval(payload) {
   const goal = String(payload.get("goal") || goalInput.value || "").trim();
   const dictionary = parseDictionaryValue(String(payload.get("data_dictionary") || ""));
   const plannedSteps = buildPlannedSteps(goal, dictionary, file);
-  planApprovalSummary.innerHTML = plannedSteps
-    .map(
-      (item) => `
-        <article class="plan-card ${escapeHtml(item.kind || "")}">
-          <span>${escapeHtml(item.kicker)}</span>
-          <strong>${escapeHtml(item.title)}</strong>
-          <p>${escapeHtml(item.detail)}</p>
-        </article>
-      `
-    )
-    .join("");
+  planApprovalSummary.replaceChildren(...plannedSteps.map(renderPlanCardNode));
   taskTitle.textContent = "等待计划确认";
-  planList.innerHTML = plannedSteps
-    .filter((item) => item.step)
-    .map(
-      (item, index) => `
-        <li>
-          <strong>${index + 1}. ${escapeHtml(item.title)}</strong>
-          <p>${escapeHtml(item.detail)}</p>
-          <span class="tool-pill">${escapeHtml(item.tool || "agent")}</span>
-        </li>
-      `
-    )
-    .join("");
+  planList.replaceChildren(...plannedSteps.filter((item) => item.step).map(renderPlannedListItemNode));
   renderTransparencyState({
     reasoning: [
       `已准备分析 ${file.name}，目标是：${goal || "通用数据分析"}。`,
@@ -600,32 +579,21 @@ async function openJob(jobId) {
 
 function renderMetrics(data) {
   const capacity = `${data.active_jobs || 0}/${data.max_concurrent_jobs || 0}`;
-  opsMetricGrid.innerHTML = [
-    metric("总任务", data.total_jobs || 0),
-    metric("运行容量", capacity),
-    metric("已完成", data.completed_jobs || 0),
-    metric("失败", data.failed_jobs || 0),
-    metric("平均耗时", `${Math.round(data.avg_duration_ms || 0)} ms`),
-    metric("P95 耗时", `${Math.round(data.p95_duration_ms || 0)} ms`),
-    metric("报告数", data.generated_reports || 0),
-    metric("环境", data.env || "local"),
-  ].join("");
+  opsMetricGrid.replaceChildren(
+    createMetricNode("总任务", data.total_jobs || 0),
+    createMetricNode("运行容量", capacity),
+    createMetricNode("已完成", data.completed_jobs || 0),
+    createMetricNode("失败", data.failed_jobs || 0),
+    createMetricNode("平均耗时", `${Math.round(data.avg_duration_ms || 0)} ms`),
+    createMetricNode("P95 耗时", `${Math.round(data.p95_duration_ms || 0)} ms`),
+    createMetricNode("报告数", data.generated_reports || 0),
+    createMetricNode("环境", data.env || "local")
+  );
 
   const entries = Object.entries(data.by_status || {});
   const total = entries.reduce((sum, [, value]) => sum + Number(value || 0), 0);
   statusTotal.textContent = String(total);
-  statusBreakdown.innerHTML = entries
-    .map(([status, value]) => {
-      const percent = total ? Math.round((Number(value) / total) * 100) : 0;
-      return `
-        <div class="status-row">
-          <span>${escapeHtml(statusLabels[status] || status)}</span>
-          <div><i style="width:${percent}%"></i></div>
-          <strong>${escapeHtml(String(value))}</strong>
-        </div>
-      `;
-    })
-    .join("");
+  statusBreakdown.replaceChildren(...entries.map(([status, value]) => renderStatusRowNode(status, value, total)));
 }
 
 function updateSourceHint(mode) {
@@ -681,13 +649,13 @@ function renderResult(data) {
   emptyState.classList.add("hidden");
   taskTitle.textContent = data.source_filename || "分析完成";
 
-  metricGrid.innerHTML = [
-    metric("行数", profile.rows),
-    metric("字段数", profile.columns),
-    metric("质量评分", `${Math.round((profile.quality_score || 0) * 100)}%`),
-    metric("分析意图", data.analysis_intent?.label || "通用探索"),
-    metric("步骤数", data.plan.steps.length),
-  ].join("");
+  metricGrid.replaceChildren(
+    createMetricNode("行数", profile.rows),
+    createMetricNode("字段数", profile.columns),
+    createMetricNode("质量评分", `${Math.round((profile.quality_score || 0) * 100)}%`),
+    createMetricNode("分析意图", data.analysis_intent?.label || "通用探索"),
+    createMetricNode("步骤数", data.plan.steps.length)
+  );
   if (trustScoreLabel) {
     const confidence = data.executive_summary?.confidence ?? profile.quality_score ?? 0;
     trustScoreLabel.textContent = `${Math.round(Number(confidence || 0) * 100)}%`;
@@ -703,24 +671,12 @@ function renderResult(data) {
   const insights = data.insights || [];
   insightBlock.classList.toggle("hidden", !insights.length);
   insightCount.textContent = insights.length;
-  insightList.innerHTML = insights
-    .map(
-      (insight) => `
-        <article class="insight-item ${escapeHtml(insight.severity || "info")}">
-          <strong>${escapeHtml(insight.title)} <span>${escapeHtml(translateInsightType(insight.insight_type))} · ${Math.round((insight.confidence || 0) * 100)}%</span></strong>
-          <p>${escapeHtml(insight.detail)}</p>
-          ${renderInsightEvidence(insight)}
-        </article>
-      `
-    )
-    .join("");
+  insightList.replaceChildren(...insights.map(renderInsightNode));
 
   const semanticRoles = data.semantic_roles || [];
   semanticBlock.classList.toggle("hidden", !semanticRoles.length);
   semanticCount.textContent = semanticRoles.length;
-  semanticList.innerHTML = semanticRoles
-    .map((role) => `<span class="chip">${escapeHtml(translateRole(role.role))} · ${escapeHtml(role.column)} · ${Math.round((role.confidence || 0) * 100)}%</span>`)
-    .join("");
+  semanticList.replaceChildren(...semanticRoles.map((role) => createChip(`${translateRole(role.role)} · ${role.column} · ${Math.round((role.confidence || 0) * 100)}%`)));
 
   const warnings = profile.warnings.length ? profile.warnings : ["未发现明显重复行、缺失值或常量字段问题。"];
   qualityCount.textContent = warnings.length;
@@ -744,12 +700,12 @@ function renderResult(data) {
   const actionItems = data.action_items || [];
   actionBlock.classList.toggle("hidden", !actionItems.length);
   actionCount.textContent = actionItems.length;
-  actionList.innerHTML = actionItems.map(renderActionItem).join("");
+  actionList.replaceChildren(...actionItems.map(renderActionItemNode));
 
   const metricDefinitions = data.metric_definitions || [];
   metricDefinitionBlock.classList.toggle("hidden", !metricDefinitions.length);
   metricDefinitionCount.textContent = metricDefinitions.length;
-  metricDefinitionList.innerHTML = metricDefinitions.map(renderMetricDefinition).join("");
+  metricDefinitionList.replaceChildren(...metricDefinitions.map(renderMetricDefinitionNode));
 
   columnCount.textContent = profile.column_names.length;
   columnList.replaceChildren(...profile.column_names.map((column) => createChip(`${column} · ${profile.dtypes[column] || "unknown"}`)));
@@ -1195,6 +1151,33 @@ function createListItem(value) {
   return item;
 }
 
+function createMetricNode(label, value) {
+  const card = document.createElement("article");
+  card.className = "metric";
+  const labelNode = document.createElement("span");
+  labelNode.textContent = label;
+  const valueNode = document.createElement("strong");
+  valueNode.textContent = String(value);
+  card.append(labelNode, valueNode);
+  return card;
+}
+
+function renderStatusRowNode(status, value, total) {
+  const percent = total ? Math.round((Number(value) / total) * 100) : 0;
+  const row = document.createElement("div");
+  row.className = "status-row";
+  const label = document.createElement("span");
+  label.textContent = statusLabels[status] || status;
+  const bar = document.createElement("div");
+  const fill = document.createElement("i");
+  fill.style.width = `${percent}%`;
+  bar.append(fill);
+  const count = document.createElement("strong");
+  count.textContent = String(value);
+  row.append(label, bar, count);
+  return row;
+}
+
 function createSuggestionButton(value) {
   const button = document.createElement("button");
   button.className = "suggestion-chip";
@@ -1214,6 +1197,90 @@ function renderPlanStepNode(step, index) {
   tool.textContent = step.tool;
   item.append(title, objective, tool);
   return item;
+}
+
+function renderPlanCardNode(item) {
+  const card = document.createElement("article");
+  card.className = `plan-card ${safeClassName(item.kind || "")}`;
+  const kicker = document.createElement("span");
+  kicker.textContent = item.kicker;
+  const title = document.createElement("strong");
+  title.textContent = item.title;
+  const detail = document.createElement("p");
+  detail.textContent = item.detail;
+  card.append(kicker, title, detail);
+  return card;
+}
+
+function renderPlannedListItemNode(item, index) {
+  return renderPlanStepNode(
+    {
+      title: item.title,
+      objective: item.detail,
+      tool: item.tool || "agent",
+    },
+    index
+  );
+}
+
+function renderInsightNode(insight) {
+  const article = document.createElement("article");
+  article.className = `insight-item ${safeClassName(insight.severity || "info")}`;
+  const title = document.createElement("strong");
+  title.textContent = insight.title || "洞察";
+  const meta = document.createElement("span");
+  meta.textContent = `${translateInsightType(insight.insight_type)} · ${Math.round((insight.confidence || 0) * 100)}%`;
+  title.append(" ", meta);
+  const detail = document.createElement("p");
+  detail.textContent = insight.detail || "";
+  article.append(title, detail);
+  appendEvidenceChips(article, insight.evidence || []);
+  return article;
+}
+
+function renderActionItemNode(item) {
+  const article = document.createElement("article");
+  article.className = `action-item ${safeClassName(item.priority || "medium")}`;
+  const title = document.createElement("strong");
+  title.textContent = item.title || "行动项";
+  const priority = document.createElement("span");
+  priority.textContent = item.priority || "medium";
+  title.append(" ", priority);
+  const detail = document.createElement("p");
+  detail.textContent = item.detail || "";
+  article.append(title, detail);
+  if (item.next_step) {
+    const next = document.createElement("small");
+    next.textContent = `下一步：${item.next_step}`;
+    article.append(next);
+  }
+  appendEvidenceChips(article, (item.evidence || []).slice(0, 3));
+  return article;
+}
+
+function renderMetricDefinitionNode(item) {
+  const article = document.createElement("article");
+  article.className = `definition-item ${item.available ? "available" : "missing"}`;
+  const title = document.createElement("strong");
+  title.textContent = item.name || "指标";
+  const status = document.createElement("span");
+  status.textContent = item.available ? "可计算" : "需补充字段";
+  title.append(" ", status);
+  const formula = document.createElement("code");
+  formula.textContent = item.formula || "";
+  const reason = document.createElement("p");
+  reason.textContent = item.reason || "";
+  article.append(title, formula, reason);
+  appendEvidenceChips(article, item.columns || []);
+  return article;
+}
+
+function appendEvidenceChips(parent, values) {
+  if (!values.length) return;
+  const evidence = document.createElement("div");
+  evidence.className = "insight-evidence";
+  values.forEach((value) => evidence.append(createChip(value)));
+  parent.append(evidence);
 }
 
 function renderTraceSpanNode(span) {
