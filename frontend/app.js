@@ -5,6 +5,7 @@
   actorInput,
   organizationInput,
   roleInput,
+  planInput,
   workspaceInput,
   apiTokenInput,
   fileInput,
@@ -55,6 +56,8 @@
   followupJobLabel,
   opsMetricGrid,
   refreshMetrics,
+  accountUsageGrid,
+  accountUsageStatus,
   statusBreakdown,
   statusTotal,
   currentJob,
@@ -153,12 +156,14 @@ const statusLabels = {
 actorInput.value = localStorage.getItem("daa.actor") || actorInput.value || "local";
 organizationInput.value = localStorage.getItem("daa.organization") || organizationInput.value || "default";
 roleInput.value = localStorage.getItem("daa.role") || roleInput.value || "analyst";
+planInput.value = localStorage.getItem("daa.plan") || planInput.value || "free";
 workspaceInput.value = localStorage.getItem("daa.workspace") || workspaceInput.value || "default";
 apiTokenInput.value = "";
 localStorage.removeItem("daa.apiToken");
 actorInput.addEventListener("change", persistAccessSettings);
 organizationInput.addEventListener("change", persistAccessSettings);
 roleInput.addEventListener("change", persistAccessSettings);
+planInput.addEventListener("change", persistAccessSettings);
 workspaceInput.addEventListener("change", persistAccessSettings);
 
 goalTemplateButtons.forEach((button) => {
@@ -389,12 +394,20 @@ async function loadJobs() {
 
 async function loadMetrics() {
   try {
-    const response = await apiFetch("/api/metrics");
-    const data = await readJson(response);
-    if (!response.ok) throw new Error(data.error || "无法读取运行指标。");
-    renderMetrics(data);
+    const [metricsResponse, accountResponse] = await Promise.all([
+      apiFetch("/api/metrics"),
+      apiFetch("/api/account"),
+    ]);
+    const metrics = await readJson(metricsResponse);
+    const account = await readJson(accountResponse);
+    if (!metricsResponse.ok) throw new Error(metrics.error || "无法读取运行指标。");
+    if (!accountResponse.ok) throw new Error(account.error || account.detail || "无法读取账户用量。");
+    renderMetrics(metrics);
+    renderAccountUsage(account);
   } catch (error) {
     opsMetricGrid.innerHTML = metric("指标状态", "读取失败");
+    accountUsageStatus.textContent = "读取失败";
+    accountUsageGrid.replaceChildren(createAccountUsageItem("错误", error.message));
     statusBreakdown.innerHTML = `<p class="muted-copy">${escapeHtml(error.message)}</p>`;
   }
 }
@@ -586,6 +599,8 @@ function renderMetrics(data) {
     createMetricNode("失败", data.failed_jobs || 0),
     createMetricNode("平均耗时", `${Math.round(data.avg_duration_ms || 0)} ms`),
     createMetricNode("P95 耗时", `${Math.round(data.p95_duration_ms || 0)} ms`),
+    createMetricNode("估算成本", `$${Number(data.estimated_cost_usd || 0).toFixed(4)}`),
+    createMetricNode("额度使用", `${Math.round(Number(data.quota_used_ratio || 0) * 100)}%`),
     createMetricNode("报告数", data.generated_reports || 0),
     createMetricNode("环境", data.env || "local")
   );
@@ -594,6 +609,47 @@ function renderMetrics(data) {
   const total = entries.reduce((sum, [, value]) => sum + Number(value || 0), 0);
   statusTotal.textContent = String(total);
   statusBreakdown.replaceChildren(...entries.map(([status, value]) => renderStatusRowNode(status, value, total)));
+}
+
+function renderAccountUsage(data) {
+  if (!accountUsageGrid || !accountUsageStatus) return;
+  const quota = data.quota || {};
+  const usage = data.usage || {};
+  const features = data.features || [];
+  accountUsageStatus.textContent = `${data.plan || "free"} · ${data.organization || "default"}/${data.workspace || "default"}`;
+  accountUsageGrid.replaceChildren(
+    createAccountUsageItem("用户", `${data.actor || "local"} · ${data.role || "viewer"}`),
+    createAccountUsageItem("任务额度", `${quota.used_jobs || 0}/${quota.monthly_jobs || 0}`),
+    createAccountUsageItem("剩余额度", quota.remaining_jobs ?? 0),
+    createAccountUsageItem("并发上限", quota.max_active_jobs ?? 0),
+    createAccountUsageItem("P95 延迟", `${Math.round(usage.p95_duration_ms || 0)} ms`),
+    createAccountUsageItem("估算成本", `$${Number(usage.estimated_cost_usd || 0).toFixed(4)}`),
+    createAccountUsageItem("生产能力", summarizeFeatures(features))
+  );
+}
+
+function createAccountUsageItem(label, value) {
+  const item = document.createElement("article");
+  item.className = "account-usage-item";
+  const title = document.createElement("span");
+  title.textContent = label;
+  const body = document.createElement("strong");
+  body.textContent = String(value);
+  item.append(title, body);
+  return item;
+}
+
+function summarizeFeatures(features) {
+  const labels = {
+    postgres: "PostgreSQL",
+    redis_rq: "Redis/RQ",
+    docker_sandbox: "Docker 沙箱",
+    dashboard_saved_views: "看板保存",
+    ppt_exports: "PPT",
+    usage_alerts: "用量告警",
+  };
+  const selected = features.map((feature) => labels[feature]).filter(Boolean);
+  return selected.length ? selected.join(" / ") : "基础分析";
 }
 
 function updateSourceHint(mode) {
@@ -611,6 +667,8 @@ function applyExportPreset(preset) {
   const presets = {
     executive: { audience: "executive", format: "executive_brief", goal: "面向管理层总结关键变化、风险和下一步决策建议。" },
     client: { audience: "client", format: "business_report", goal: "生成适合客户汇报的业务报告，突出结论、证据和建议。" },
+    department: { audience: "manager", format: "department_brief", goal: "生成部门复盘版报告，突出本部门指标、责任动作和协作风险。" },
+    ppt: { audience: "executive", format: "ppt_brief", goal: "生成适合直接转成 PPT 的汇报大纲，突出标题、关键页和结论证据。" },
     diagnostic: { audience: "operator", format: "diagnostic", goal: "输出数据质量、指标口径和执行动作的诊断清单。" },
   };
   const selected = presets[preset];
@@ -1662,6 +1720,7 @@ function persistAccessSettings() {
   localStorage.setItem("daa.actor", actorInput.value.trim() || "local");
   localStorage.setItem("daa.organization", organizationInput.value.trim() || "default");
   localStorage.setItem("daa.role", roleInput.value.trim() || "analyst");
+  localStorage.setItem("daa.plan", planInput.value.trim() || "free");
   localStorage.setItem("daa.workspace", workspaceInput.value.trim() || "default");
   localStorage.removeItem("daa.apiToken");
 }
@@ -1672,6 +1731,7 @@ function requestHeaders() {
     "X-Org": organizationInput.value.trim() || "default",
     "X-Workspace": workspaceInput.value.trim() || "default",
     "X-Role": roleInput.value.trim() || "analyst",
+    "X-Plan": planInput.value.trim() || "free",
   };
   const token = apiTokenInput.value.trim();
   if (token) {
@@ -1688,6 +1748,7 @@ function apiFetch(url, options = {}) {
       organization: organizationInput.value.trim() || "default",
       workspace: workspaceInput.value.trim() || "default",
       role: roleInput.value.trim() || "analyst",
+      plan: planInput.value.trim() || "free",
       apiToken: apiTokenInput.value.trim(),
     }));
     return delegatedFetch(url, options);

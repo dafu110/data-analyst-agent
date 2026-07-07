@@ -132,6 +132,9 @@
                 <select id="deliveryFormat" class="text-input" name="delivery_format">
                   <option value="business_report" selected>业务报告</option>
                   <option value="executive_brief">管理摘要</option>
+                  <option value="client_brief">客户汇报</option>
+                  <option value="department_brief">部门复盘</option>
+                  <option value="ppt_brief">PPT 大纲</option>
                   <option value="diagnostic">诊断清单</option>
                 </select>
               </div>
@@ -163,6 +166,12 @@
                   <option value="analyst">分析师</option>
                   <option value="viewer">只读查看者</option>
                   <option value="admin">管理员</option>
+                </select>
+                <label class="field-label" for="planName">套餐</label>
+                <select id="planName" class="text-input" name="plan">
+                  <option value="free">Free</option>
+                  <option value="team">Team</option>
+                  <option value="business">Business</option>
                 </select>
                 <label class="field-label" for="workspaceName">工作区</label>
                 <input id="workspaceName" class="text-input" name="workspace" type="text" value="default" autocomplete="off">
@@ -398,6 +407,8 @@
               <div class="template-grid">
                 <button class="template-chip" type="button" data-export-preset="executive">老板版摘要</button>
                 <button class="template-chip" type="button" data-export-preset="client">客户汇报</button>
+                <button class="template-chip" type="button" data-export-preset="department">部门复盘</button>
+                <button class="template-chip" type="button" data-export-preset="ppt">PPT 模板</button>
                 <button class="template-chip" type="button" data-export-preset="diagnostic">诊断清单</button>
               </div>
             </section>
@@ -457,6 +468,10 @@
 
           <section id="ops" class="tab-panel">
             <div class="report-toolbar"><button id="refreshMetrics" class="secondary-action" type="button">刷新指标</button></div>
+            <section class="section-block account-usage-panel">
+              <div class="section-heading"><h3>账户与用量</h3><span id="accountUsageStatus">未读取</span></div>
+              <div id="accountUsageGrid" class="account-usage-grid"></div>
+            </section>
             <div id="opsMetricGrid" class="metric-grid"></div>
             <section class="section-block">
               <div class="section-heading"><h3>状态分布</h3><span id="statusTotal">0</span></div>

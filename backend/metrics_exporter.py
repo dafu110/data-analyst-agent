@@ -11,6 +11,8 @@ GAUGE_NAMES = {
     "generated_reports": "data_analyst_agent_reports_generated_total",
     "avg_duration_ms": "data_analyst_agent_job_duration_average_ms",
     "p95_duration_ms": "data_analyst_agent_job_duration_p95_ms",
+    "estimated_cost_usd": "data_analyst_agent_estimated_cost_usd",
+    "quota_used_ratio": "data_analyst_agent_quota_used_ratio",
 }
 
 

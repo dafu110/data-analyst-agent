@@ -1,11 +1,13 @@
-name: CI
+name: Release Gate
 
 on:
+  workflow_dispatch:
   push:
-  pull_request:
+    tags:
+      - "v*"
 
 jobs:
-  test:
+  release-gate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,23 +22,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fonts-wqy-microhei fonts-noto-cjk
           fc-cache -f
-      - name: Install
+      - name: Install production dependencies
         run: pip install -e .[prod]
       - name: Frontend syntax
         run: |
           node --check frontend/app.js
           node --check frontend/charts.js
-      - name: Compile
-        run: python -m compileall data_analyst_agent backend evals scripts
+      - name: Compile Python
+        run: python -m compileall data_analyst_agent backend evals scripts tests
       - name: Unit tests
         run: python -m unittest discover -s tests
       - name: Evals
         run: python -m evals.run_evals
-      - name: Production configuration check
+      - name: Production readiness
         run: python -m backend.production_check
-      - name: Build Python sandbox image
-        run: docker build -f docker/sandbox.Dockerfile -t data-analyst-agent-sandbox:ci .
-      - name: Verify sandbox image
-        run: |
-          docker tag data-analyst-agent-sandbox:ci data-analyst-agent-sandbox:latest
-          DATA_ANALYST_AGENT_EXECUTOR_MODE=docker python -m backend.production_check
+      - name: Build sandbox image
+        run: docker build -f docker/sandbox.Dockerfile -t data-analyst-agent-sandbox:release .

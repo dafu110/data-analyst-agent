@@ -62,6 +62,24 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("body:not(.has-dataset):not(.has-result) .preflight-panel", styles)
         self.assertIn("body:not(.has-dataset):not(.has-result) .tabs", styles)
 
+    def test_saas_usage_and_bi_controls_are_exposed(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        charts = (ROOT / "frontend" / "charts.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="accountUsageGrid"', index)
+        self.assertIn('id="planName"', index)
+        self.assertIn('value="department_brief"', index)
+        self.assertIn('value="ppt_brief"', index)
+        self.assertIn('apiFetch("/api/account")', app)
+        self.assertIn('createAccountUsageItem("估算成本"', app)
+        self.assertIn("DASHBOARD_STORAGE_KEY", charts)
+        self.assertIn("saveDashboardView", charts)
+        self.assertIn("applyChartEdit", charts)
+        self.assertIn(".chart-editor-panel", styles)
+        self.assertIn(".account-usage-grid", styles)
+
 
 if __name__ == "__main__":
     unittest.main()

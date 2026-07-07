@@ -26,6 +26,7 @@ from backend.observability import log_event
 from backend.rate_limiter import InMemoryRateLimiter
 from backend.metrics_exporter import metrics_to_prometheus
 from backend.security_headers import SECURITY_HEADERS
+from backend.usage import build_account_usage, usage_summary_for_metrics
 from data_analyst_agent.agent import DataAnalystAgent
 from data_analyst_agent.followup import answer_followup
 from data_analyst_agent.options import parse_analysis_options as parse_agent_analysis_options
@@ -62,6 +63,15 @@ class DataAnalystRequestHandler(BaseHTTPRequestHandler):
                 return
             self.handle_list_jobs(parse_qs(request.query))
             audit(JOB_STORE, context, "job.list", "jobs")
+            return
+
+        if requested_path == "/api/account":
+            if not self.require_auth():
+                return
+            if not self.require_permission("account.read"):
+                return
+            self.handle_account()
+            audit(JOB_STORE, context, "account.read", "account")
             return
 
         if requested_path.startswith("/api/jobs/"):
@@ -373,7 +383,10 @@ class DataAnalystRequestHandler(BaseHTTPRequestHandler):
 
     def handle_metrics(self) -> None:
         owner = None if self.is_admin_actor() else self.actor()
-        payload = JOB_STORE.metrics(owner=owner)
+        organization = None if self.is_admin_actor() else self.organization()
+        workspace = None if self.is_admin_actor() else self.workspace()
+        payload = JOB_STORE.metrics(owner=owner, organization=organization, workspace=workspace)
+        payload.update(usage_summary_for_metrics(payload, self.headers.get("X-Plan")))
         payload.update(
             {
                 "env": CONFIG.env,
@@ -391,12 +404,27 @@ class DataAnalystRequestHandler(BaseHTTPRequestHandler):
 
     def handle_prometheus_metrics(self) -> None:
         owner = None if self.is_admin_actor() else self.actor()
-        data = metrics_to_prometheus(JOB_STORE.metrics(owner=owner)).encode("utf-8")
+        organization = None if self.is_admin_actor() else self.organization()
+        workspace = None if self.is_admin_actor() else self.workspace()
+        metrics = JOB_STORE.metrics(owner=owner, organization=organization, workspace=workspace)
+        metrics.update(usage_summary_for_metrics(metrics, self.headers.get("X-Plan")))
+        data = metrics_to_prometheus(metrics).encode("utf-8")
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def handle_account(self) -> None:
+        metrics = JOB_STORE.metrics(owner=self.actor(), organization=self.organization(), workspace=self.workspace())
+        payload = build_account_usage(
+            principal=self.principal(),
+            metrics=metrics,
+            configured_max_active_jobs=CONFIG.max_active_jobs_per_actor,
+            configured_max_upload_bytes=CONFIG.max_upload_bytes,
+            plan_name=self.headers.get("X-Plan"),
+        )
+        self.send_json(payload)
 
     def serve_static(self, requested_path: str) -> None:
         candidate = (CONFIG.frontend_dir / requested_path.lstrip("/")).resolve()

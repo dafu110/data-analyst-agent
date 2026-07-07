@@ -64,9 +64,24 @@ if Field is not None:
         generated_reports: int
         avg_duration_ms: float
         p95_duration_ms: float = 0
+        estimated_cost_usd: float = 0
+        monthly_job_quota: int | None = None
+        quota_used_ratio: float | None = None
         by_status: dict[str, int]
         scope: str | None = None
         queue: str | None = None
+
+
+    class AccountUsageResponse(BaseModel):
+        actor: str
+        organization: str
+        workspace: str
+        role: str
+        plan: str
+        quota: dict[str, Any]
+        usage: dict[str, Any]
+        features: list[str]
+        policy: dict[str, Any]
 
 
     class AuditEventResponse(BaseModel):
@@ -100,4 +115,4 @@ if Field is not None:
         question: str = Field(min_length=1, max_length=1000)
 
 else:
-    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = None
+    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AccountUsageResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = None

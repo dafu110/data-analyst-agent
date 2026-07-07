@@ -3,7 +3,8 @@ window.DataAnalystUI = window.DataAnalystUI || {};
 window.DataAnalystUI.charts = (() => {
   const { escapeHtml, formatNumber } = window.DataAnalystUI.renderers;
   const { downloadChartCsv, downloadChartPng, downloadChartSvg } = window.DataAnalystUI.exports;
-  const state = { query: "", type: "auto", view: "recommended", specs: [] };
+  const DASHBOARD_STORAGE_KEY = "daa.dashboard.view";
+  const state = { ...loadSavedDashboardView(), specs: [] };
 
   function renderChartGrid(chartGrid, chartSpecs, setError) {
     state.specs = chartSpecs || [];
@@ -19,6 +20,7 @@ window.DataAnalystUI.charts = (() => {
       return;
     }
     chartGrid.innerHTML = state.specs.map((spec, index) => renderChart(spec, index)).join("");
+    hydrateChartEditor(chartGrid);
     bindChartActions(chartGrid, setError);
     applyChartFilters(chartGrid);
   }
@@ -53,6 +55,8 @@ window.DataAnalystUI.charts = (() => {
       <span id="chartVisibleCount" class="toolbar-counter">0 个图表</span>
     `;
     host.insertBefore(toolbar, chartGrid);
+    appendDashboardControls(toolbar);
+    updateToolbarControls(toolbar);
     toolbar.querySelectorAll("[data-chart-view]").forEach((button) => {
       button.addEventListener("click", () => {
         state.view = button.dataset.chartView || "recommended";
@@ -68,6 +72,22 @@ window.DataAnalystUI.charts = (() => {
       state.type = event.target.value;
       applyChartFilters(chartGrid);
     });
+    toolbar.querySelector("#saveDashboardView")?.addEventListener("click", () => {
+      saveDashboardView();
+      setError("");
+    });
+    toolbar.querySelector("#resetDashboardView")?.addEventListener("click", () => {
+      Object.assign(state, { query: "", type: "auto", view: "recommended" });
+      saveDashboardView();
+      updateToolbarControls(toolbar);
+      applyChartFilters(chartGrid);
+    });
+    toolbar.querySelector("#toggleChartEditor")?.addEventListener("click", () => {
+      toolbar.querySelector("#chartEditorPanel")?.classList.toggle("hidden");
+      hydrateChartEditor(chartGrid);
+    });
+    toolbar.querySelector("#chartEditSelect")?.addEventListener("change", () => syncChartEditorFields());
+    toolbar.querySelector("#applyChartEdit")?.addEventListener("click", () => applyChartEdit(chartGrid, setError));
     toolbar.querySelector("#downloadAllChartsCsv")?.addEventListener("click", () => {
       if (!state.specs.length) {
         setError("当前没有可导出的图表数据。");
@@ -75,6 +95,117 @@ window.DataAnalystUI.charts = (() => {
       }
       state.specs.forEach(downloadChartCsv);
     });
+  }
+
+  function appendDashboardControls(toolbar) {
+    const save = createToolbarButton("saveDashboardView", "保存看板");
+    const reset = createToolbarButton("resetDashboardView", "重置");
+    const edit = createToolbarButton("toggleChartEditor", "编辑图表");
+    const editor = document.createElement("div");
+    editor.id = "chartEditorPanel";
+    editor.className = "chart-editor-panel hidden";
+    editor.append(
+      createEditorField("图表", "select", "chartEditSelect"),
+      createEditorField("标题", "input", "chartEditTitle"),
+      createEditorField("X 字段", "input", "chartEditX"),
+      createEditorField("Y 字段", "input", "chartEditY"),
+      createToolbarButton("applyChartEdit", "应用")
+    );
+    toolbar.append(save, reset, edit, editor);
+  }
+
+  function createToolbarButton(id, label) {
+    const button = document.createElement("button");
+    button.id = id;
+    button.className = "secondary-action";
+    button.type = "button";
+    button.textContent = label;
+    return button;
+  }
+
+  function createEditorField(labelText, kind, id) {
+    const label = document.createElement("label");
+    const span = document.createElement("span");
+    span.textContent = labelText;
+    const control = document.createElement(kind === "select" ? "select" : "input");
+    control.id = id;
+    control.className = "text-input compact-input";
+    if (kind !== "select") control.type = "text";
+    label.append(span, control);
+    return label;
+  }
+
+  function updateToolbarControls(toolbar) {
+    toolbar.querySelectorAll("[data-chart-view]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.chartView === state.view);
+    });
+    const search = toolbar.querySelector("#chartSearchInput");
+    if (search) search.value = state.query || "";
+    const type = toolbar.querySelector("#chartTypeSelect");
+    if (type) type.value = state.type || "auto";
+  }
+
+  function hydrateChartEditor() {
+    const select = document.querySelector("#chartEditSelect");
+    if (!select) return;
+    select.replaceChildren(
+      ...state.specs.map((spec, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = spec.title || `Chart ${index + 1}`;
+        return option;
+      })
+    );
+    syncChartEditorFields();
+  }
+
+  function syncChartEditorFields() {
+    const select = document.querySelector("#chartEditSelect");
+    const index = Number(select?.value || 0);
+    const spec = state.specs[index] || {};
+    const title = document.querySelector("#chartEditTitle");
+    const x = document.querySelector("#chartEditX");
+    const y = document.querySelector("#chartEditY");
+    if (title) title.value = spec.title || "";
+    if (x) x.value = spec.x || "";
+    if (y) y.value = spec.y || "";
+  }
+
+  function applyChartEdit(chartGrid, setError) {
+    const select = document.querySelector("#chartEditSelect");
+    const index = Number(select?.value || 0);
+    const spec = state.specs[index];
+    if (!spec) {
+      setError("请选择要编辑的图表。");
+      return;
+    }
+    const title = document.querySelector("#chartEditTitle")?.value.trim();
+    const x = document.querySelector("#chartEditX")?.value.trim();
+    const y = document.querySelector("#chartEditY")?.value.trim();
+    if (title) spec.title = title;
+    if (x) spec.x = x;
+    if (y) spec.y = y;
+    chartGrid.innerHTML = state.specs.map((item, itemIndex) => renderChart(item, itemIndex)).join("");
+    hydrateChartEditor();
+    bindChartActions(chartGrid, setError);
+    applyChartFilters(chartGrid);
+  }
+
+  function loadSavedDashboardView() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(DASHBOARD_STORAGE_KEY) || "{}");
+      return {
+        query: String(saved.query || ""),
+        type: ["auto", "bar", "line", "range", "compact"].includes(saved.type) ? saved.type : "auto",
+        view: ["recommended", "all", "review"].includes(saved.view) ? saved.view : "recommended",
+      };
+    } catch (error) {
+      return { query: "", type: "auto", view: "recommended" };
+    }
+  }
+
+  function saveDashboardView() {
+    localStorage.setItem(DASHBOARD_STORAGE_KEY, JSON.stringify({ query: state.query, type: state.type, view: state.view }));
   }
 
   function renderChart(spec, index = 0) {

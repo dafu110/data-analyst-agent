@@ -3217,7 +3217,7 @@ body:not(.has-dataset):not(.has-result) .empty-state {
 
 .chart-interaction-toolbar {
   display: grid;
-  grid-template-columns: auto minmax(180px, 1fr) minmax(150px, 0.55fr) auto auto;
+  grid-template-columns: auto minmax(180px, 1fr) minmax(150px, 0.55fr) repeat(5, auto);
 }
 
 .chart-interaction-toolbar label {
@@ -3240,6 +3240,49 @@ body:not(.has-dataset):not(.has-result) .empty-state {
 .chart-view-switch {
   align-self: end;
   min-height: var(--control-h);
+}
+
+.account-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.account-usage-item {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 78px;
+  padding: var(--card-pad);
+  border: 1px solid #e1e9ef;
+  border-radius: var(--radius);
+  background: #fbfcfd;
+}
+
+.account-usage-item span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-usage-item strong {
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.chart-editor-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(160px, 0.7fr) minmax(180px, 1.2fr) minmax(130px, 0.7fr) minmax(130px, 0.7fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid #e3ebf0;
+}
+
+.chart-editor-panel.hidden {
+  display: none;
 }
 
 .chart-view-chip {
@@ -3337,6 +3380,10 @@ body:not(.has-dataset):not(.has-result) .empty-state {
     grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr) minmax(150px, 0.7fr);
   }
 
+  .account-usage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chart-interaction-toolbar .secondary-action,
   .toolbar-counter {
     justify-self: start;
@@ -3356,6 +3403,10 @@ body:not(.has-dataset):not(.has-result) .empty-state {
   .asset-toolbar {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .chart-editor-panel {
+    grid-template-columns: 1fr;
   }
 
   .chart-interaction-toolbar .secondary-action,
@@ -3429,6 +3480,10 @@ body:not(.has-dataset):not(.has-result) .empty-state {
   }
 
   .chart-stat-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .account-usage-grid {
     grid-template-columns: 1fr;
   }
 

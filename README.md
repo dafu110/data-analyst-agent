@@ -167,17 +167,6 @@ docker/                  Python 沙箱镜像和运行脚本
 - [生产级端到端验证清单](docs/PRODUCTION_VERIFICATION.zh-CN.md)
 - [运维手册](docs/OPERATIONS.md)
 
-## 当前成熟度
-
-当前项目已经适合个人和小团队真实使用，也具备 SaaS 化的基础架构。距离成熟商业 SaaS 还需要继续加强：
-
-- 完整真实联调 PostgreSQL、Redis/RQ worker、Docker 沙箱
-- 进一步拆分前端渲染层，持续减少高风险 `innerHTML`
-- 增加登录、组织、套餐、用量计费和租户隔离
-- 增强 BI 交互：字段拖拽、筛选器、看板保存、图表编辑
-- 增强报告模板：老板版、客户版、部门版、PPT 模板
-- 加入 CI、发布流程、监控告警、成本和延迟统计
-
 ## 建议运行顺序
 
 1. 先运行 `python -m unittest discover -s tests`

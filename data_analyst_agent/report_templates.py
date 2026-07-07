@@ -15,7 +15,11 @@ class ReportGenerator:
         quick = depth == "quick"
         deep = depth == "deep"
         executive_brief = delivery == "executive_brief"
+        client_brief = delivery == "client_brief"
+        department_brief = delivery == "department_brief"
+        ppt_brief = delivery == "ppt_brief"
         diagnostic = delivery == "diagnostic"
+        compact_delivery = executive_brief or client_brief or ppt_brief
 
         lines = [
             "# 数据分析智能体报告",
@@ -70,7 +74,9 @@ class ReportGenerator:
             ]
         )
 
-        if result.analysis_intent and not executive_brief:
+        lines.extend(self._delivery_template_sections(result, delivery))
+
+        if result.analysis_intent and not compact_delivery:
             lines.extend(
                 [
                     "## 分析意图",
@@ -82,20 +88,20 @@ class ReportGenerator:
                 ]
             )
 
-        if result.semantic_roles and not quick and not executive_brief:
+        if result.semantic_roles and not quick and not compact_delivery:
             lines.extend(["## 业务字段识别", ""])
             for role in result.semantic_roles:
                 lines.append(f"- {role.role}: `{role.column}`（置信度 {role.confidence:.0%}，{role.reason}）")
             lines.append("")
 
-        if result.table_summaries and not quick and not executive_brief:
+        if result.table_summaries and not quick and not compact_delivery:
             lines.extend(["## 数据表结构", ""])
             for table in result.table_summaries:
                 fields = ", ".join(table.column_names[:12])
                 lines.append(f"- `{table.name}`：{table.rows} 行 x {table.columns} 列；字段：{fields}")
             lines.append("")
 
-        if result.table_relationships and deep and not executive_brief:
+        if result.table_relationships and deep and not compact_delivery:
             lines.extend(["## 多表关系推断", ""])
             for relationship in result.table_relationships:
                 lines.append(
@@ -127,7 +133,7 @@ class ReportGenerator:
             lines.append("- missing_values 明细：所有字段缺失值为 0。")
         lines.append("")
 
-        if profile.numeric_summary and not executive_brief:
+        if profile.numeric_summary and not compact_delivery:
             lines.extend(["## 数值字段摘要", ""])
             for column, summary in profile.numeric_summary.items():
                 mean = summary.get("mean", 0)
@@ -139,24 +145,65 @@ class ReportGenerator:
         if diagnostic:
             lines.extend(self._diagnostic_only(result))
         else:
-            lines.extend(self._business_sections(result, quick=quick, deep=deep, executive_brief=executive_brief))
+            lines.extend(self._business_sections(result, quick=quick, deep=deep, executive_brief=compact_delivery))
 
         if result.chart_specs:
             lines.extend(["", "## 推荐图表", ""])
-            for chart in result.chart_specs[:3 if quick or executive_brief else None]:
+            for chart in result.chart_specs[:3 if quick or compact_delivery else None]:
                 lines.append(f"- {chart.title}: {chart.description}")
 
-        if deep and not executive_brief and not diagnostic:
+        if deep and not compact_delivery and not diagnostic:
             lines.extend(["", "## 分析发现原始结果", ""])
             for tool_result in result.tool_results:
                 lines.extend(render_tool_result(tool_result))
 
-        if deep and not executive_brief and result.trace_spans:
+        if deep and not compact_delivery and result.trace_spans:
             lines.extend(["", "## 执行 Trace", ""])
             for span in result.trace_spans:
                 lines.append(f"- {span.label}：{span.status}，{span.duration_ms:.2f} ms，工具 `{span.tool or 'n/a'}`")
 
         return "\n".join(lines)
+
+    def _delivery_template_sections(self, result: AgentResult, delivery: str) -> list[str]:
+        if delivery == "client_brief":
+            return [
+                "## 客户汇报版结构",
+                "",
+                "- 开场：先给出可确认的结论，再说明数据范围和口径边界。",
+                "- 证据：每个关键结论保留指标值、样本范围和建议复核点。",
+                "- 行动：把建议拆成客户可决策、可执行、需补充数据三类。",
+                "",
+            ]
+        if delivery == "department_brief":
+            return [
+                "## 部门复盘版结构",
+                "",
+                "- 部门指标：优先呈现与本部门目标相关的趋势、贡献和异常。",
+                "- 责任动作：下一步建议按负责人、优先级和依赖条件拆解。",
+                "- 协作风险：标注需要其他部门确认的数据口径或业务假设。",
+                "",
+            ]
+        if delivery == "ppt_brief":
+            chart_count = len(result.chart_specs or [])
+            return [
+                "## PPT 模板大纲",
+                "",
+                "- 第 1 页：结论标题、数据范围、综合置信度。",
+                "- 第 2 页：核心发现三点，配套指标证据。",
+                f"- 第 3 页：推荐图表（当前可用 {chart_count} 个），优先选择趋势、贡献或异常图。",
+                "- 第 4 页：风险与复核点。",
+                "- 第 5 页：下一步行动和需要决策的问题。",
+                "",
+            ]
+        if delivery == "executive_brief":
+            return [
+                "## 老板版摘要结构",
+                "",
+                "- 先看结论、风险和建议，不展开工具细节。",
+                "- 只保留最能支持决策的图表和行动项。",
+                "",
+            ]
+        return []
 
     def _business_sections(self, result: AgentResult, *, quick: bool, deep: bool, executive_brief: bool) -> list[str]:
         lines: list[str] = []

@@ -7,9 +7,9 @@ from typing import Protocol
 
 
 ROLE_PERMISSIONS = {
-    "viewer": {"job.read", "job.list", "report.read", "metrics.read"},
-    "analyst": {"job.create", "job.read", "job.list", "job.cancel", "report.read", "metrics.read"},
-    "admin": {"job.create", "job.read", "job.list", "job.cancel", "job.cleanup", "report.read", "metrics.read", "audit.read"},
+    "viewer": {"account.read", "job.read", "job.list", "report.read", "metrics.read"},
+    "analyst": {"account.read", "job.create", "job.read", "job.list", "job.cancel", "report.read", "metrics.read"},
+    "admin": {"account.read", "job.create", "job.read", "job.list", "job.cancel", "job.cleanup", "report.read", "metrics.read", "audit.read"},
 }
 IDENTITY_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.@:-]{0,63}$")
 

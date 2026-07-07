@@ -15,7 +15,7 @@ SCENARIO_CHOICES = {
 }
 AUDIENCE_CHOICES = {"operator", "manager", "executive", "client"}
 DEPTH_CHOICES = {"quick", "standard", "deep"}
-DELIVERY_CHOICES = {"business_report", "executive_brief", "diagnostic"}
+DELIVERY_CHOICES = {"business_report", "executive_brief", "client_brief", "department_brief", "ppt_brief", "diagnostic"}
 
 
 @dataclass(frozen=True)

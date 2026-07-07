@@ -8,6 +8,7 @@ window.DataAnalystUI.api = (() => {
       "X-Org": settings.organization || "default",
       "X-Workspace": settings.workspace || "default",
       "X-Role": settings.role || "analyst",
+      "X-Plan": settings.plan || "free",
       ...extraHeaders,
     };
     if (settings.apiToken) {
