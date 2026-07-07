@@ -40,6 +40,15 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn('["revenue", "收入"]', source)
         self.assertNotIn('["", "unspecified"]', source)
 
+    def test_result_mode_collapses_secondary_agent_details(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("agent-detail-disclosure", index)
+        self.assertIn('removeAttribute("open")', source)
+        self.assertIn(".has-result .agent-detail-disclosure:not([open]) .agent-transparency-panel", styles)
+
 
 if __name__ == "__main__":
     unittest.main()

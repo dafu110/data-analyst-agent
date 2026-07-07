@@ -677,6 +677,7 @@ function renderResult(data) {
   runtime.latestResult = data;
   const profile = data.profile;
   runtime.latestReport = data.report_markdown || "";
+  document.querySelector(".agent-detail-disclosure")?.removeAttribute("open");
   emptyState.classList.add("hidden");
   taskTitle.textContent = data.source_filename || "分析完成";
 
@@ -778,6 +779,7 @@ function resetResultPanels() {
   runtime.latestReport = "";
   runtime.latestResult = null;
   runtime.activeJobId = null;
+  document.querySelector(".agent-detail-disclosure")?.setAttribute("open", "");
   metricGrid.innerHTML = "";
   executiveSummaryBlock.classList.add("hidden");
   executiveSummaryContent.innerHTML = "";

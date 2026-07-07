@@ -756,9 +756,52 @@ textarea:focus,
   display: grid;
   grid-template-columns: minmax(260px, 1.15fr) minmax(220px, 0.9fr) minmax(260px, 1fr);
   gap: 12px;
-  padding: 0 18px 14px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--line);
   background: #fbfcfd;
+}
+
+.result-detail-disclosure {
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfd;
+}
+
+.result-detail-disclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 0 18px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.result-detail-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.result-detail-disclosure summary::after {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  content: "";
+}
+
+.result-detail-disclosure[open] summary::after {
+  transform: rotate(225deg) translateY(-2px);
+}
+
+.result-detail-disclosure summary span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.result-detail-disclosure summary small {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .command-card {
@@ -2441,18 +2484,23 @@ textarea:focus,
 .has-result .quickstart-panel,
 .has-result .guardrail-box,
 .has-result .preview-table,
-.has-result #fieldConfidenceSummary {
+.has-result #fieldConfidenceSummary,
+.has-result .business-disclosure,
+.has-result .dictionary-disclosure,
+.has-result .access-disclosure {
   display: none;
 }
 
 .has-result .data-preview {
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 8px;
+  border-style: dashed;
   background: #fbfcfd;
 }
 
-.has-result .field-mapping-list {
-  max-height: 168px;
+.has-result .field-mapping-list,
+.has-result .preview-actions {
+  display: none;
 }
 
 .has-result .field-mapping-row {
@@ -2468,9 +2516,19 @@ textarea:focus,
   background: #fff;
 }
 
+.has-result .topbar {
+  min-height: 64px;
+  padding: 14px 18px;
+}
+
+.has-result .topbar h2 {
+  margin-top: 2px;
+  font-size: 20px;
+}
+
 .has-result .agent-command-bar {
-  grid-template-columns: minmax(220px, 0.95fr) minmax(220px, 0.85fr) minmax(300px, 1.2fr);
-  padding: 10px 18px;
+  grid-template-columns: minmax(260px, 1fr) minmax(360px, 1.35fr);
+  padding: 8px 18px 12px;
 }
 
 .has-result .command-card,
@@ -2479,9 +2537,23 @@ textarea:focus,
   padding: 12px;
 }
 
+.has-result .agent-command-bar .command-card:not(.primary-command) {
+  display: none;
+}
+
 .has-result .agent-transparency-panel {
   grid-template-columns: minmax(260px, 1.2fr) minmax(260px, 1fr);
-  padding: 0 18px 10px;
+  padding: 0 18px 12px;
+}
+
+.has-result .agent-detail-disclosure:not([open]) .agent-transparency-panel {
+  display: none;
+}
+
+.has-result .agent-detail-disclosure summary {
+  min-height: 36px;
+  color: #52616c;
+  background: #f8fafb;
 }
 
 .has-result .agent-transparency-panel .transparency-card:not(.reasoning-card):not(.intervention-card) {
@@ -2498,7 +2570,7 @@ textarea:focus,
 }
 
 .has-result .stage-rail {
-  min-height: 78px;
+  min-height: 66px;
   align-content: center;
 }
 
@@ -2532,6 +2604,15 @@ textarea:focus,
 .has-result #overview #metricDefinitionBlock,
 .has-result #overview .split-grid {
   grid-column: 2;
+}
+
+.has-result #overview #trustEvidenceBlock,
+.has-result #overview #agentActivityBlock,
+.has-result #overview #currentJob,
+.has-result #overview #semanticBlock,
+.has-result #overview #questionBlock,
+.has-result #overview #metricDefinitionBlock {
+  display: none;
 }
 
 .has-result .metric-grid {
@@ -2577,6 +2658,14 @@ textarea:focus,
 
 .has-result .section-block {
   margin-bottom: 14px;
+}
+
+.has-result #executiveSummaryBlock {
+  grid-row: 1 / span 2;
+}
+
+.has-result #insightBlock {
+  grid-row: 2 / span 4;
 }
 
 .chart-view-switch {
