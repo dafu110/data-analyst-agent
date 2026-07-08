@@ -5,7 +5,7 @@ from pathlib import Path
 
 from backend.authz import Principal, has_permission
 from backend.metrics_exporter import metrics_to_prometheus
-from backend.usage import build_account_usage, usage_summary_for_metrics
+from backend.usage import build_account_usage, build_usage_alerts, usage_summary_for_metrics
 from data_analyst_agent.options import parse_analysis_options
 
 
@@ -52,6 +52,29 @@ class SaaSReadinessTests(unittest.TestCase):
         self.assertIn("data_analyst_agent_estimated_cost_usd", prometheus)
         self.assertIn("data_analyst_agent_quota_used_ratio", prometheus)
 
+    def test_usage_alerts_flag_failure_quota_latency_and_cost(self) -> None:
+        alerts = build_usage_alerts(
+            {
+                "total_jobs": 5000,
+                "active_jobs": 2,
+                "completed_jobs": 4000,
+                "failed_jobs": 300,
+                "generated_reports": 20,
+                "avg_duration_ms": 1_000_000,
+                "p95_duration_ms": 75_000,
+                "max_concurrent_jobs": 2,
+            },
+            "free",
+        )
+
+        keys = {alert["key"] for alert in alerts["alerts"]}
+        self.assertEqual(alerts["severity"], "critical")
+        self.assertIn("failure_rate", keys)
+        self.assertIn("quota_usage", keys)
+        self.assertIn("p95_latency", keys)
+        self.assertIn("estimated_cost", keys)
+        self.assertIn("capacity", keys)
+
     def test_account_permission_and_new_report_templates_are_registered(self) -> None:
         self.assertTrue(has_permission(Principal(actor="viewer", role="viewer"), "account.read"))
         self.assertEqual(parse_analysis_options({"delivery_format": "client_brief"}).delivery_format, "client_brief")
@@ -91,6 +114,34 @@ class SaaSReadinessTests(unittest.TestCase):
         self.assertEqual(payload["plan"], "team")
         self.assertEqual(payload["organization"], "acme")
         self.assertEqual(payload["workspace"], "finance")
+
+    def test_fastapi_alerts_endpoint_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except Exception:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        client = TestClient(fastapi_app.create_app())
+        response = client.get(
+            "/api/alerts",
+            headers={
+                "X-Actor": "saas-smoke",
+                "X-Org": "acme",
+                "X-Workspace": "finance",
+                "X-Role": "analyst",
+                "X-Plan": "team",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertIn(payload["severity"], {"ok", "warning", "critical"})
+        self.assertIn("alerts", payload)
+        self.assertIn("summary", payload)
 
 
 if __name__ == "__main__":

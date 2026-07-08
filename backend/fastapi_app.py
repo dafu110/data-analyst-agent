@@ -15,13 +15,13 @@ from backend.exporters import markdown_to_pdf, markdown_to_pptx
 from backend.job_store import job_to_dict
 from backend.observability import log_event
 from backend.rate_limiter import InMemoryRateLimiter
-from backend.schemas import AccountUsageResponse, AuditLogResponse, CleanupResponse, FollowupRequest, FollowupResponse, HealthResponse, JobListResponse, JobResponse, MetricsResponse
+from backend.schemas import AccountUsageResponse, AlertsResponse, AuditLogResponse, CleanupResponse, FollowupRequest, FollowupResponse, HealthResponse, JobListResponse, JobResponse, MetricsResponse
 from backend.security_headers import apply_security_headers
 from backend.server import markdown_to_html, result_to_csv_summary
 from backend.metrics_exporter import metrics_to_prometheus
 from backend.service import create_analysis_job, is_supported_dataset
 from backend.store_factory import build_job_store
-from backend.usage import build_account_usage, usage_summary_for_metrics
+from backend.usage import build_account_usage, build_usage_alerts, usage_summary_for_metrics
 from data_analyst_agent.followup import answer_followup
 from data_analyst_agent.options import parse_analysis_options
 
@@ -248,6 +248,19 @@ def create_app():
         payload.update(usage_summary_for_metrics(payload, x_plan))
         payload.update({"scope": "all" if owner is None else "actor", "queue": "redis-rq" if CONFIG.redis_url else "in-process"})
         return payload
+
+    @app.get("/api/alerts", response_model=AlertsResponse, tags=["ops"])
+    def alerts(
+        principal: Annotated[Principal, Depends(current_principal)],
+        x_plan: Annotated[str | None, Header(alias="X-Plan")] = None,
+    ) -> dict[str, object]:
+        require(principal, "metrics.read")
+        owner = None if principal.effective_role == "admin" else principal.actor
+        organization = None if principal.effective_role == "admin" else principal.organization
+        workspace = None if principal.effective_role == "admin" else principal.workspace
+        payload = JOB_STORE.metrics(owner=owner, organization=organization, workspace=workspace)
+        payload.update({"max_concurrent_jobs": CONFIG.max_concurrent_jobs})
+        return build_usage_alerts(payload, x_plan)
 
     @app.get("/api/metrics.prometheus", tags=["ops"])
     def prometheus_metrics(

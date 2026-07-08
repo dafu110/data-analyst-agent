@@ -65,6 +65,8 @@ window.DataAnalystUI.elements = (() => {
     refreshMetrics: query("#refreshMetrics"),
     accountUsageGrid: query("#accountUsageGrid"),
     accountUsageStatus: query("#accountUsageStatus"),
+    alertList: query("#alertList"),
+    alertStatus: query("#alertStatus"),
     statusBreakdown: query("#statusBreakdown"),
     statusTotal: query("#statusTotal"),
     currentJob: query("#currentJob"),

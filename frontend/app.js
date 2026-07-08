@@ -58,6 +58,8 @@
   refreshMetrics,
   accountUsageGrid,
   accountUsageStatus,
+  alertList,
+  alertStatus,
   statusBreakdown,
   statusTotal,
   currentJob,
@@ -394,20 +396,26 @@ async function loadJobs() {
 
 async function loadMetrics() {
   try {
-    const [metricsResponse, accountResponse] = await Promise.all([
+    const [metricsResponse, accountResponse, alertsResponse] = await Promise.all([
       apiFetch("/api/metrics"),
       apiFetch("/api/account"),
+      apiFetch("/api/alerts"),
     ]);
     const metrics = await readJson(metricsResponse);
     const account = await readJson(accountResponse);
+    const alerts = await readJson(alertsResponse);
     if (!metricsResponse.ok) throw new Error(metrics.error || "无法读取运行指标。");
     if (!accountResponse.ok) throw new Error(account.error || account.detail || "无法读取账户用量。");
+    if (!alertsResponse.ok) throw new Error(alerts.error || alerts.detail || "无法读取监控告警。");
     renderMetrics(metrics);
     renderAccountUsage(account);
+    renderAlerts(alerts);
   } catch (error) {
     opsMetricGrid.innerHTML = metric("指标状态", "读取失败");
     accountUsageStatus.textContent = "读取失败";
     accountUsageGrid.replaceChildren(createAccountUsageItem("错误", error.message));
+    alertStatus.textContent = "读取失败";
+    alertList.replaceChildren(createAlertItem({ severity: "critical", title: "读取失败", detail: error.message, recommendation: "检查服务状态和 API 权限。" }));
     statusBreakdown.innerHTML = `<p class="muted-copy">${escapeHtml(error.message)}</p>`;
   }
 }
@@ -626,6 +634,43 @@ function renderAccountUsage(data) {
     createAccountUsageItem("估算成本", `$${Number(usage.estimated_cost_usd || 0).toFixed(4)}`),
     createAccountUsageItem("生产能力", summarizeFeatures(features))
   );
+}
+
+function renderAlerts(data) {
+  if (!alertList || !alertStatus) return;
+  const alerts = data.alerts || [];
+  const severity = data.severity || "ok";
+  alertStatus.textContent = alerts.length ? `${translateAlertSeverity(severity)} · ${alerts.length}` : "正常";
+  alertStatus.className = `alert-status ${severity}`;
+  const visibleAlerts = alerts.length
+    ? alerts
+    : [
+        {
+          severity: "ok",
+          title: "暂无告警",
+          detail: "失败率、额度、延迟、成本和容量都在默认阈值内。",
+          recommendation: "继续观察运行指标，生产环境建议接入 Prometheus 告警。",
+        },
+      ];
+  alertList.replaceChildren(...visibleAlerts.map(createAlertItem));
+}
+
+function createAlertItem(alert) {
+  const item = document.createElement("article");
+  item.className = `alert-item ${alert.severity || "ok"}`;
+  const title = document.createElement("strong");
+  title.textContent = alert.title || "告警";
+  const detail = document.createElement("p");
+  detail.textContent = alert.detail || "";
+  const recommendation = document.createElement("span");
+  recommendation.textContent = alert.recommendation || "";
+  item.append(title, detail, recommendation);
+  return item;
+}
+
+function translateAlertSeverity(severity) {
+  const labels = { ok: "正常", warning: "提醒", critical: "严重" };
+  return labels[severity] || severity || "正常";
 }
 
 function createAccountUsageItem(label, value) {

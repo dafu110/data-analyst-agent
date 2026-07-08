@@ -73,12 +73,16 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn('value="department_brief"', index)
         self.assertIn('value="ppt_brief"', index)
         self.assertIn('apiFetch("/api/account")', app)
+        self.assertIn('apiFetch("/api/alerts")', app)
         self.assertIn('createAccountUsageItem("估算成本"', app)
+        self.assertIn("function renderAlerts", app)
+        self.assertIn('id="alertList"', index)
         self.assertIn("DASHBOARD_STORAGE_KEY", charts)
         self.assertIn("saveDashboardView", charts)
         self.assertIn("applyChartEdit", charts)
         self.assertIn(".chart-editor-panel", styles)
         self.assertIn(".account-usage-grid", styles)
+        self.assertIn(".alert-list", styles)
 
 
 if __name__ == "__main__":

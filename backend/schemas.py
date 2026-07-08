@@ -84,6 +84,23 @@ if Field is not None:
         policy: dict[str, Any]
 
 
+    class AlertItemResponse(BaseModel):
+        key: str
+        severity: str
+        title: str
+        detail: str
+        recommendation: str
+        value: float | int
+        threshold: float | int
+
+
+    class AlertsResponse(BaseModel):
+        status: str
+        severity: str
+        alerts: list[AlertItemResponse]
+        summary: dict[str, Any]
+
+
     class AuditEventResponse(BaseModel):
         id: str
         timestamp: str
@@ -115,4 +132,4 @@ if Field is not None:
         question: str = Field(min_length=1, max_length=1000)
 
 else:
-    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AccountUsageResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = None
+    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AccountUsageResponse = AlertsResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = None

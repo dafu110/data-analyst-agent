@@ -3248,6 +3248,74 @@ body:not(.has-dataset):not(.has-result) .empty-state {
   gap: var(--space-3);
 }
 
+.alert-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.alert-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--card-pad);
+  border: 1px solid #dbe4eb;
+  border-radius: var(--radius);
+  background: #fbfcfd;
+}
+
+.alert-item.ok {
+  border-color: #b7decf;
+  background: var(--green-soft);
+}
+
+.alert-item.warning {
+  border-color: #e6bd62;
+  background: var(--amber-soft);
+}
+
+.alert-item.critical {
+  border-color: #f1aba7;
+  background: var(--red-soft);
+}
+
+.alert-item strong,
+.alert-item p,
+.alert-item span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.alert-item p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.alert-item span {
+  color: #34424c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.alert-status {
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.alert-status.ok {
+  color: var(--green);
+  background: var(--green-soft);
+}
+
+.alert-status.warning {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.alert-status.critical {
+  color: var(--red);
+  background: var(--red-soft);
+}
+
 .account-usage-item {
   display: grid;
   gap: var(--space-2);

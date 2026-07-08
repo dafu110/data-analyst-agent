@@ -26,7 +26,7 @@ from backend.observability import log_event
 from backend.rate_limiter import InMemoryRateLimiter
 from backend.metrics_exporter import metrics_to_prometheus
 from backend.security_headers import SECURITY_HEADERS
-from backend.usage import build_account_usage, usage_summary_for_metrics
+from backend.usage import build_account_usage, build_usage_alerts, usage_summary_for_metrics
 from data_analyst_agent.agent import DataAnalystAgent
 from data_analyst_agent.followup import answer_followup
 from data_analyst_agent.options import parse_analysis_options as parse_agent_analysis_options
@@ -108,6 +108,15 @@ class DataAnalystRequestHandler(BaseHTTPRequestHandler):
                 return
             self.handle_metrics()
             audit(JOB_STORE, context, "metrics.read", "metrics")
+            return
+
+        if requested_path == "/api/alerts":
+            if not self.require_auth():
+                return
+            if not self.require_permission("metrics.read"):
+                return
+            self.handle_alerts()
+            audit(JOB_STORE, context, "metrics.read", "alerts")
             return
 
         if requested_path == "/api/metrics.prometheus":
@@ -401,6 +410,14 @@ class DataAnalystRequestHandler(BaseHTTPRequestHandler):
             }
         )
         self.send_json(payload)
+
+    def handle_alerts(self) -> None:
+        owner = None if self.is_admin_actor() else self.actor()
+        organization = None if self.is_admin_actor() else self.organization()
+        workspace = None if self.is_admin_actor() else self.workspace()
+        metrics = JOB_STORE.metrics(owner=owner, organization=organization, workspace=workspace)
+        metrics.update({"max_concurrent_jobs": CONFIG.max_concurrent_jobs})
+        self.send_json(build_usage_alerts(metrics, self.headers.get("X-Plan")))
 
     def handle_prometheus_metrics(self) -> None:
         owner = None if self.is_admin_actor() else self.actor()
