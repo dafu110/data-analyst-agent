@@ -19,6 +19,18 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn('<script src="/state.js"></script>', index)
         self.assertIn("window.DataAnalystUI.elements", state)
         self.assertIn("window.DataAnalystUI.runtime", state)
+        self.assertIn('<script src="/labels.js"></script>', index)
+
+    def test_frontend_labels_are_split_from_main_app_file(self) -> None:
+        labels = (ROOT / "frontend" / "labels.js").read_text(encoding="utf-8")
+        app = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("window.DataAnalystUI.labels", labels)
+        self.assertIn("agentCommandStates", labels)
+        self.assertIn("statusLabels", labels)
+        self.assertIn("const {", app)
+        self.assertIn("} = window.DataAnalystUI.labels;", app)
+        self.assertNotIn("const statusLabels = {", app)
 
     def test_high_risk_frontend_renderers_use_dom_nodes(self) -> None:
         source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")

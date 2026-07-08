@@ -74,5 +74,43 @@
       "min_trace_spans": 4,
       "require_structured_insights": true
     }
+  },
+  {
+    "id": "marketing_funnel_efficiency",
+    "dataset": "examples/marketing_funnel.csv",
+    "goal": "分析投放渠道的收入、成本、订单、退款和获客质量，找出预算优化方向",
+    "expected_behavior": "识别日期、渠道、收入、成本、订单和客户字段，发现重复行、缺失成本和渠道贡献差异。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "business_complexity",
+    "assertions": {
+      "min_steps": 7,
+      "required_report_terms": ["数据质量扫描", "存在缺失值风险", "核心指标时间趋势", "关键结论"],
+      "required_step_ids": ["missingness", "time-trend", "numeric-anomalies", "correlations"],
+      "min_charts": 4,
+      "min_insights": 7,
+      "min_semantic_roles": 5,
+      "min_quality_score": 0.7,
+      "min_trace_spans": 6,
+      "require_structured_insights": true
+    }
+  },
+  {
+    "id": "subscription_retention_risk",
+    "dataset": "examples/subscription_retention.csv",
+    "goal": "分析订阅用户留存、流失、MRR、客服工单和满意度风险",
+    "expected_behavior": "围绕月度趋势、计划分层、流失和收入指标生成洞察，并标记满意度缺失值。",
+    "allowed_tools": ["python", "sql"],
+    "risk_tag": "retention",
+    "assertions": {
+      "min_steps": 7,
+      "required_report_terms": ["时间序列摘要", "存在缺失值风险", "数据质量评分", "分析边界"],
+      "required_step_ids": ["missingness", "numeric-summary", "time-trend", "numeric-anomalies"],
+      "min_charts": 4,
+      "min_insights": 7,
+      "min_semantic_roles": 4,
+      "min_quality_score": 0.7,
+      "min_trace_spans": 6,
+      "require_structured_insights": true
+    }
   }
 ]

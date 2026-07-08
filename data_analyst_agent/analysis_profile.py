@@ -63,6 +63,8 @@ def detect_date_columns(df: pd.DataFrame) -> list[str]:
         if not name_hint and not pd.api.types.is_object_dtype(series):
             continue
         parsed = pd.to_datetime(series, errors="coerce")
+        if parsed.notna().mean() < 0.7 and "month" in column_text:
+            parsed = pd.to_datetime(series.astype(str) + "-01", errors="coerce")
         if parsed.notna().mean() >= 0.7:
             date_columns.append(str(column))
     return date_columns

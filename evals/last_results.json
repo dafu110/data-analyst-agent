@@ -1,12 +1,45 @@
 {
   "passed": true,
+  "summary": {
+    "total_cases": 6,
+    "passed_cases": 6,
+    "failed_cases": 0,
+    "risk_tags": {
+      "happy_path": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "quality": {
+        "total": 2,
+        "passed": 2,
+        "failed": 0
+      },
+      "trend": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "business_complexity": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      },
+      "retention": {
+        "total": 1,
+        "passed": 1,
+        "failed": 0
+      }
+    }
+  },
   "results": [
     {
       "id": "sales_profile_happy_path",
       "risk_tag": "happy_path",
+      "expected_behavior": "生成完整的数据画像、分析计划、工具结果、图表和报告。",
       "passed": true,
       "failures": [],
-      "latency_ms": 45.26,
+      "latency_ms": 45.29,
       "steps": 10,
       "charts": 5,
       "insights": 13,
@@ -17,9 +50,10 @@
     {
       "id": "sales_quality_focus",
       "risk_tag": "quality",
+      "expected_behavior": "执行数据质量扫描，并展示缺失值相关发现。",
       "passed": true,
       "failures": [],
-      "latency_ms": 30.44,
+      "latency_ms": 29.9,
       "steps": 10,
       "charts": 5,
       "insights": 13,
@@ -30,9 +64,10 @@
     {
       "id": "monthly_sales_trend",
       "risk_tag": "trend",
+      "expected_behavior": "识别日期字段，生成时间趋势和分群贡献分析。",
       "passed": true,
       "failures": [],
-      "latency_ms": 38.98,
+      "latency_ms": 41.53,
       "steps": 11,
       "charts": 6,
       "insights": 16,
@@ -43,14 +78,43 @@
     {
       "id": "customer_ops_quality",
       "risk_tag": "quality",
+      "expected_behavior": "发现缺失值和重复行，并识别运营分析意图。",
       "passed": true,
       "failures": [],
-      "latency_ms": 37.78,
+      "latency_ms": 35.68,
       "steps": 7,
       "charts": 6,
       "insights": 11,
       "semantic_roles": 5,
       "quality_score": 0.9617,
+      "trace_spans": 7
+    },
+    {
+      "id": "marketing_funnel_efficiency",
+      "risk_tag": "business_complexity",
+      "expected_behavior": "识别日期、渠道、收入、成本、订单和客户字段，发现重复行、缺失成本和渠道贡献差异。",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 66.91,
+      "steps": 8,
+      "charts": 6,
+      "insights": 13,
+      "semantic_roles": 7,
+      "quality_score": 0.9821,
+      "trace_spans": 7
+    },
+    {
+      "id": "subscription_retention_risk",
+      "risk_tag": "retention",
+      "expected_behavior": "围绕月度趋势、计划分层、流失和收入指标生成洞察，并标记满意度缺失值。",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 54.11,
+      "steps": 8,
+      "charts": 6,
+      "insights": 13,
+      "semantic_roles": 5,
+      "quality_score": 0.998,
       "trace_spans": 7
     }
   ]

@@ -4,11 +4,13 @@ import unittest
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
+from unittest.mock import Mock
 import re
 
 import pandas as pd
 
 from backend.config import AppConfig, validate_runtime_config
+from backend.production_check import check_docker, run_docker_sandbox_smoke
 from data_analyst_agent.database_connector import validate_database_url, validate_readonly_query
 from data_analyst_agent.datasets import load_dataset_bundle
 from data_analyst_agent.agent import DataAnalystAgent
@@ -103,6 +105,28 @@ class ProductionAdapterTests(unittest.TestCase):
         self.assertIn('"--cap-drop"', sandbox_source)
         self.assertIn('"ALL"', sandbox_source)
         self.assertIn('"no-new-privileges"', sandbox_source)
+
+    def test_production_check_runs_docker_smoke_when_sandbox_required(self) -> None:
+        version_result = Mock(returncode=0, stdout="25.0.0\n", stderr="")
+        image_result = Mock(returncode=0, stdout="[]", stderr="")
+        smoke_result = Mock(returncode=0, stdout="sandbox-ok\n", stderr="")
+
+        with patch("backend.production_check.shutil.which", return_value="docker"):
+            with patch("backend.production_check.subprocess.run", side_effect=[version_result, image_result, smoke_result]) as run:
+                result = check_docker("docker", require_external=False)
+
+        self.assertEqual(result.status, "ok")
+        self.assertEqual(run.call_args_list[-1].args[0][0:7], ["docker", "run", "--rm", "--network", "none", "--read-only", "--cap-drop"])
+        self.assertIn("ALL", run.call_args_list[-1].args[0])
+
+    def test_docker_smoke_reports_failure(self) -> None:
+        failed = Mock(returncode=1, stdout="", stderr="permission denied")
+
+        with patch("backend.production_check.subprocess.run", return_value=failed):
+            result = run_docker_sandbox_smoke("docker")
+
+        self.assertEqual(result.status, "failed")
+        self.assertIn("permission denied", result.detail)
 
     def test_production_e2e_script_is_available(self) -> None:
         script = ROOT / "scripts" / "production_e2e_check.py"

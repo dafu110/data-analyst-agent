@@ -10,7 +10,7 @@ ROLE_KEYWORDS = {
     "channel": ("channel", "渠道", "来源", "source", "platform", "平台"),
     "customer": ("customer", "客户", "用户", "会员", "user", "client"),
     "order": ("order", "订单", "orderid", "订单号"),
-    "revenue": ("revenue", "sales", "销售额", "收入", "成交额", "gmv", "amount", "金额"),
+    "revenue": ("revenue", "sales", "销售额", "收入", "成交额", "gmv", "mrr", "arr", "amount", "金额"),
     "profit": ("profit", "利润", "毛利", "净利", "margin"),
     "cost": ("cost", "成本", "费用", "expense"),
     "units": ("units", "销量", "件数", "数量", "qty", "quantity", "volume"),

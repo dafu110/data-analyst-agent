@@ -135,6 +135,10 @@ def check_docker(executor_mode: str, require_external: bool) -> CheckResult:
             timeout=5,
         )
         if image_check.returncode == 0:
+            if require_external or executor_mode == "docker":
+                smoke = run_docker_sandbox_smoke(docker)
+                if smoke.status != "ok":
+                    return smoke
             return CheckResult("Docker sandbox", "ok", f"Docker server {completed.stdout.strip()}，沙箱镜像可用")
         status = "failed" if require_external or executor_mode == "docker" else "warning"
         return CheckResult(
@@ -144,6 +148,40 @@ def check_docker(executor_mode: str, require_external: bool) -> CheckResult:
         )
     status = "failed" if require_external or executor_mode == "docker" else "warning"
     return CheckResult("Docker sandbox", status, completed.stderr.strip() or "Docker server 暂不可用")
+
+
+def run_docker_sandbox_smoke(docker: str) -> CheckResult:
+    try:
+        completed = subprocess.run(
+            [
+                docker,
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--read-only",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "data-analyst-agent-sandbox:latest",
+                "python",
+                "-c",
+                "print('sandbox-ok')",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except Exception as exc:
+        return CheckResult("Docker sandbox smoke", "failed", f"沙箱容器 smoke 运行失败：{exc}")
+    if completed.returncode == 0 and "sandbox-ok" in completed.stdout:
+        return CheckResult("Docker sandbox smoke", "ok", "沙箱容器可启动，且使用 no-network/read-only/cap-drop 基线。")
+    return CheckResult(
+        "Docker sandbox smoke",
+        "failed",
+        completed.stderr.strip() or completed.stdout.strip() or "沙箱容器 smoke 未返回预期输出。",
+    )
 
 
 def host_port_open(host: str | None, port: int) -> bool:

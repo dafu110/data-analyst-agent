@@ -1,0 +1,17 @@
+date,channel,campaign,region,impressions,clicks,orders,revenue,cost,refunds,new_customers
+2026-01-01,Search,Brand,East,12000,780,84,16800,4200,3,58
+2026-01-01,Social,Launch,East,18000,920,65,12350,6900,6,49
+2026-01-01,Email,Retention,North,6200,740,91,18200,900,2,38
+2026-01-08,Search,Brand,East,11800,810,88,17600,4300,4,61
+2026-01-08,Social,Launch,East,21000,990,71,13490,7200,7,52
+2026-01-08,Partner,Coop,South,4500,210,19,4180,1600,1,14
+2026-01-15,Search,Generic,North,15500,690,54,10800,5100,5,33
+2026-01-15,Email,Retention,North,6500,760,94,19100,950,2,40
+2026-01-15,Partner,Coop,South,4700,225,20,4400,1650,1,15
+2026-01-22,Search,Generic,West,16200,710,51,10200,5200,4,31
+2026-01-22,Social,Launch,West,26000,1050,63,11970,9100,12,44
+2026-01-22,Email,Retention,North,6700,790,98,19900,970,2,42
+2026-01-29,Search,Brand,East,12100,830,92,18400,4350,3,63
+2026-01-29,Social,Launch,West,30000,1150,59,11210,,14,41
+2026-01-29,Partner,Coop,South,4800,230,22,4840,1700,1,16
+2026-01-29,Partner,Coop,South,4800,230,22,4840,1700,1,16

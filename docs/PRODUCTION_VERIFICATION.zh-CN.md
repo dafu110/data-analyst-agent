@@ -58,6 +58,7 @@ python -m backend.worker
 docker build -f docker/sandbox.Dockerfile -t data-analyst-agent-sandbox:latest .
 $env:DATA_ANALYST_AGENT_EXECUTOR_MODE="docker"
 python -m unittest tests.test_agent
+python -m backend.production_check --require-external
 ```
 
 检查项：
@@ -66,6 +67,7 @@ python -m unittest tests.test_agent
 - 禁止 import、open、eval、exec 等危险操作
 - 超时任务会失败并返回明确错误
 - 容器无法访问宿主机敏感路径
+- `production_check --require-external` 会验证 Docker server、沙箱镜像以及一次 `--network none --read-only --cap-drop ALL --security-opt no-new-privileges` 的容器 smoke
 
 ## 5. 发布前门禁
 

@@ -68,8 +68,14 @@ class PythonSafetyVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_Attribute(self, node: ast.Attribute) -> None:
-        if node.attr in self.blocked_attributes:
+        if node.attr in self.blocked_attributes or node.attr.startswith("__"):
             raise GuardrailError(f"Python code accesses blocked attribute: {node.attr}")
+        self.generic_visit(node)
+
+    def visit_Subscript(self, node: ast.Subscript) -> None:
+        literal = literal_subscript_key(node.slice)
+        if literal in self.blocked_attributes or (literal or "").startswith("__"):
+            raise GuardrailError(f"Python code indexes blocked attribute: {literal}")
         self.generic_visit(node)
 
 
@@ -91,3 +97,11 @@ def validate_python_code(code: str) -> None:
     except SyntaxError as exc:
         raise GuardrailError(f"Invalid Python code: {exc}") from exc
     PythonSafetyVisitor().visit(tree)
+
+
+def literal_subscript_key(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Index):  # pragma: no cover - compatibility with older Python ASTs
+        return literal_subscript_key(node.value)
+    return None

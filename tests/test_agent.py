@@ -10,6 +10,10 @@ from data_analyst_agent.agent import DataAnalystAgent
 from data_analyst_agent.executor import ToolRouter, run_guarded_python, run_sql
 from data_analyst_agent.followup import answer_followup, suggest_followups
 from data_analyst_agent.guardrails import GuardrailError
+from data_analyst_agent.analysis_profile import detect_date_columns
+from data_analyst_agent.profiler import profile_dataframe
+from data_analyst_agent.guardrails import GuardrailPolicy
+from data_analyst_agent.semantics import infer_semantic_roles
 from data_analyst_agent.models import AnalysisPlan, AnalysisStep
 from data_analyst_agent.options import parse_analysis_options
 from data_analyst_agent.serialization import agent_result_to_dict
@@ -57,6 +61,18 @@ class DataAnalystAgentTests(unittest.TestCase):
 
         role_map = {role.role: role.column for role in result.semantic_roles}
         self.assertEqual(role_map["profit"], "revenue")
+
+    def test_month_string_columns_are_detected_as_dates(self) -> None:
+        df = pd.DataFrame({"month": ["2026-01", "2026-02", "2026-03"], "mrr": [10, 20, 30]})
+
+        self.assertIn("month", detect_date_columns(df))
+
+    def test_mrr_is_treated_as_revenue_semantic_role(self) -> None:
+        df = pd.DataFrame({"month": ["2026-01", "2026-02"], "mrr": [1000, 1200]})
+        profile = profile_dataframe(df, "subscription.csv", GuardrailPolicy())
+        roles = infer_semantic_roles(profile)
+
+        self.assertIn(("revenue", "mrr"), {(role.role, role.column) for role in roles})
 
     def test_analysis_options_are_normalized_and_affect_report_shape(self) -> None:
         options = parse_analysis_options(
@@ -107,6 +123,13 @@ class DataAnalystAgentTests(unittest.TestCase):
     def test_python_guardrails_block_imports(self) -> None:
         with self.assertRaises(GuardrailError):
             run_guarded_python(pd.DataFrame(), "import os\nresult = 1")
+
+    def test_python_guardrails_block_dunder_subscript_escape(self) -> None:
+        with self.assertRaises(GuardrailError):
+            run_guarded_python(pd.DataFrame(), "result = (1).__getattribute__('__class__')")
+
+        with self.assertRaises(GuardrailError):
+            run_guarded_python(pd.DataFrame(), "result = globals()['__builtins__']")
 
     def test_sql_allows_select_only(self) -> None:
         df = pd.DataFrame({"region": ["North", "South"], "revenue": [10, 20]})

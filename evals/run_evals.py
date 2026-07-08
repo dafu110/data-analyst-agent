@@ -63,6 +63,7 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": case["id"],
         "risk_tag": case["risk_tag"],
+        "expected_behavior": case.get("expected_behavior", ""),
         "passed": not failures,
         "failures": failures,
         "latency_ms": elapsed_ms,
@@ -72,6 +73,24 @@ def run_case(case: dict[str, Any]) -> dict[str, Any]:
         "semantic_roles": len(result.semantic_roles),
         "quality_score": result.profile.quality_score,
         "trace_spans": len(result.trace_spans),
+    }
+
+
+def summarize_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    by_risk: dict[str, dict[str, Any]] = {}
+    for result in results:
+        risk_tag = str(result["risk_tag"])
+        bucket = by_risk.setdefault(risk_tag, {"total": 0, "passed": 0, "failed": 0})
+        bucket["total"] += 1
+        if result["passed"]:
+            bucket["passed"] += 1
+        else:
+            bucket["failed"] += 1
+    return {
+        "total_cases": len(results),
+        "passed_cases": sum(1 for result in results if result["passed"]),
+        "failed_cases": sum(1 for result in results if not result["passed"]),
+        "risk_tags": by_risk,
     }
 
 
@@ -85,6 +104,7 @@ def main() -> None:
     results = [run_case(case) for case in cases]
     payload = {
         "passed": all(result["passed"] for result in results),
+        "summary": summarize_results(results),
         "results": results,
     }
     Path(args.output).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
