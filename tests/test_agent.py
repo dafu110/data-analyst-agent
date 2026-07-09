@@ -74,6 +74,18 @@ class DataAnalystAgentTests(unittest.TestCase):
 
         self.assertIn(("revenue", "mrr"), {(role.role, role.column) for role in roles})
 
+    def test_quality_score_counts_each_constant_column(self) -> None:
+        df = pd.DataFrame(
+            {
+                "constant_a": ["same", "same", "same"],
+                "constant_b": [1, 1, 1],
+                "varying": [1, 2, 3],
+            }
+        )
+        profile = profile_dataframe(df, "quality.csv", GuardrailPolicy())
+
+        self.assertEqual(profile.quality_dimensions["variability"], 0.3333)
+
     def test_analysis_options_are_normalized_and_affect_report_shape(self) -> None:
         options = parse_analysis_options(
             {
@@ -141,6 +153,12 @@ class DataAnalystAgentTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             run_sql(df, "delete from data")
+
+        with self.assertRaises(ValueError):
+            run_sql(df, "select region from data; select revenue from data")
+
+        with self.assertRaises(ValueError):
+            run_sql(df, "select region from data -- hidden operation")
 
     def test_agent_stops_when_cancelled_before_work(self) -> None:
         with self.assertRaises(TimeoutError):

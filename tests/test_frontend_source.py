@@ -10,10 +10,13 @@ ROOT = Path(__file__).resolve().parents[1]
 class FrontendSourceTests(unittest.TestCase):
     def test_key_user_facing_files_are_utf8_chinese(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        quickstart = (ROOT / "docs" / "QUICKSTART.zh-CN.md").read_text(encoding="utf-8")
         index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
         state = (ROOT / "frontend" / "state.js").read_text(encoding="utf-8")
 
         self.assertIn("中文数据分析 Agent", readme)
+        self.assertIn("快速使用指南", quickstart)
+        self.assertNotIn("涓", quickstart)
         self.assertIn('lang="zh-CN"', index)
         self.assertIn("数据分析 Agent 工作台", index)
         self.assertIn('<script src="/state.js"></script>', index)

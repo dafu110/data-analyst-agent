@@ -11,6 +11,7 @@ import pandas as pd
 from data_analyst_agent.guardrails import GuardrailPolicy, validate_python_code, validate_tool
 from data_analyst_agent.models import AnalysisPlan, AnalysisStep, ToolResult
 from data_analyst_agent.sandbox import run_python_in_docker
+from data_analyst_agent.sql_safety import validate_readonly_select
 
 
 class ToolRouter:
@@ -77,18 +78,12 @@ def run_guarded_python(df: pd.DataFrame, code: str) -> Any:
 
 
 def run_sql(df: pd.DataFrame, query: str) -> list[dict[str, Any]]:
-    query_lower = query.strip().lower()
-    if not query_lower.startswith("select"):
-        raise ValueError("Only SELECT queries are allowed.")
-    blocked_terms = (" insert ", " update ", " delete ", " drop ", " alter ", " attach ", " pragma ")
-    padded_query = f" {query_lower} "
-    if any(term in padded_query for term in blocked_terms):
-        raise ValueError("SQL query contains a blocked operation.")
+    safe_query = validate_readonly_select(query, required_table="data")
 
     connection = sqlite3.connect(":memory:")
     try:
         df.to_sql("data", connection, index=False, if_exists="replace")
-        cursor = connection.execute(query)
+        cursor = connection.execute(safe_query)
         rows = cursor.fetchall()
         columns = [description[0] for description in cursor.description]
     finally:

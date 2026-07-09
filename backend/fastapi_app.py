@@ -6,7 +6,7 @@ import threading
 import uuid
 from http import HTTPStatus
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from backend.audit import AuditContext, audit
 from backend.authz import Principal, can_access_job_scope, has_permission, normalize_principal_value, normalize_workspace, token_is_valid
@@ -183,16 +183,25 @@ def create_app():
         return {"deleted_jobs": deleted, "older_than_days": older_than_days}
 
     @app.get("/api/reports/{job_id}", tags=["reports"])
-    def get_report(job_id: str, principal: Annotated[Principal, Depends(current_principal)], format: str = "md") -> Response:
+    def get_report(
+        job_id: str,
+        principal: Annotated[Principal, Depends(current_principal)],
+        format: Literal["md", "html", "csv", "pdf", "pptx"] = Query("md"),
+    ) -> Response:
         require(principal, "report.read")
         job = require_job(job_id, principal)
         if not job.report_path:
             raise HTTPException(status_code=409, detail="报告尚未生成。")
         report_path = Path(job.report_path)
         report_root = CONFIG.report_dir.resolve()
-        if not report_path.exists() or not str(report_path.resolve()).startswith(str(report_root)):
+        try:
+            resolved_report_path = report_path.resolve()
+            resolved_report_path.relative_to(report_root)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="报告文件不可用。") from None
+        if not resolved_report_path.exists():
             raise HTTPException(status_code=404, detail="报告文件不可用。")
-        markdown = report_path.read_text(encoding="utf-8")
+        markdown = resolved_report_path.read_text(encoding="utf-8")
         if format == "html":
             return HTMLResponse(markdown_to_html(markdown), headers={"Content-Disposition": f'attachment; filename="{job_id}.html"'})
         if format == "csv":

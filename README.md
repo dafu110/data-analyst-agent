@@ -172,6 +172,8 @@ docker/                  Python 沙箱镜像和运行脚本
 - [中文快速开始](docs/QUICKSTART.zh-CN.md)
 - [生产级端到端验证清单](docs/PRODUCTION_VERIFICATION.zh-CN.md)
 - [运维手册](docs/OPERATIONS.md)
+- [Launch hardening checklist](docs/launch-hardening.md)
+- [ADR: Sandboxed analysis execution](docs/adr/0001-sandboxed-analysis-execution.md)
 
 ## 建议运行顺序
 

@@ -14,7 +14,8 @@ python -m unittest tests.test_fastapi_smoke
 - 创建分析任务
 - 轮询任务直到完成
 - 确认结果里包含图表规格和 Markdown 报告
-- 验证 Markdown、HTML、CSV 报告导出接口可用
+- 验证 Markdown、HTML、CSV、PDF、PPTX 报告导出接口可用
+- PDF 导出依赖 `reportlab` 和可用中文字体；PPTX 导出依赖 `python-pptx`
 
 ## 2. PostgreSQL 存储
 
@@ -93,5 +94,5 @@ python scripts\production_e2e_check.py --base-url http://127.0.0.1:8000 --token 
 - 单元测试全部通过
 - eval 全部通过
 - FastAPI smoke 测试在安装生产依赖时通过
-- PDF / HTML / CSV 报告导出可用
+- Markdown / HTML / CSV / PDF / PPTX 报告导出可用
 - 图表数量和关键洞察数量没有明显回退

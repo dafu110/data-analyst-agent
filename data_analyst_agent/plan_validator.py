@@ -5,6 +5,7 @@ from typing import Any
 
 from data_analyst_agent.guardrails import GuardrailError, GuardrailPolicy, validate_python_code, validate_tool
 from data_analyst_agent.models import AnalysisPlan, AnalysisStep, DatasetProfile
+from data_analyst_agent.sql_safety import validate_readonly_select
 
 
 class PlanValidationError(ValueError):
@@ -76,15 +77,10 @@ def validate_step(step: AnalysisStep, profile: DatasetProfile, policy: Guardrail
 
 
 def validate_sql_query(query: str, profile: DatasetProfile) -> None:
-    query_lower = query.strip().lower()
-    if not query_lower.startswith("select"):
-        raise PlanValidationError("SQL steps must be SELECT-only.")
-    blocked_terms = (" insert ", " update ", " delete ", " drop ", " alter ", " attach ", " pragma ")
-    padded_query = f" {query_lower} "
-    if any(term in padded_query for term in blocked_terms):
-        raise PlanValidationError("SQL query contains a blocked operation.")
-    if " from data" not in padded_query:
-        raise PlanValidationError("SQL query must read from the in-memory table named data.")
+    try:
+        validate_readonly_select(query, required_table="data")
+    except ValueError as exc:
+        raise PlanValidationError(str(exc)) from exc
 
 
 def build_planner_contract(profile: DatasetProfile) -> dict[str, Any]:

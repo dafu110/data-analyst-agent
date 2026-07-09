@@ -1,96 +1,134 @@
-﻿# Data Analyst Agent 蹇€熶娇鐢ㄦ寚鍗?
-杩欐槸涓€涓腑鏂囨暟鎹垎鏋?Agent锛岀敤浜?CSV / Excel 鏁版嵁闆嗙殑鑷姩鐢诲儚銆佷笟鍔″瓧娈佃瘑鍒€佸浘琛ㄥ缓璁€佺鐞嗘憳瑕併€佽川閲忛棬绂併€佹姤鍛婂鍑哄拰杩介棶銆?
-## 鏈湴杩愯
+# Data Analyst Agent 快速使用指南
 
-```powershell
-cd "C:\Users\lenovo\Desktop\AGENT\data-analyst-agent"
-python -m backend.fastapi_app --host 127.0.0.1 --port 8002
-```
+这是一个中文数据分析 Agent，用于 CSV / Excel 数据集的自动画像、业务字段识别、图表建议、管理摘要、质量门禁、报告导出和追问。
 
-鎵撳紑搴旂敤锛?
-```text
-http://127.0.0.1:8002
-```
+## 本地运行
 
-OpenAPI 鏂囨。锛?
-```text
-http://127.0.0.1:8002/docs
-```
-
-濡傛灉 8002 琚崰鐢紝鍙互鎹㈡垚 8003 鎴栧叾浠栫鍙ｃ€?
-## 瀹夎渚濊禆
+先安装生产依赖：
 
 ```powershell
 python -m pip install -e .[prod]
 ```
 
-鍥藉唴缃戠粶杈冩參鏃讹細
+国内网络较慢时可以使用镜像：
 
 ```powershell
 python -m pip install -e .[prod] -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-## 鎺ㄨ崘浣跨敤鏂瑰紡
+启动 FastAPI 服务：
 
-1. 涓婁紶 CSV 鎴?Excel 鏂囦欢銆?2. 閫夋嫨涓氬姟鍦烘櫙锛屼緥濡傞攢鍞€佺數鍟嗐€佽储鍔°€佸鎴疯繍钀ャ€?3. 閫夋嫨鍒嗘瀽娣卞害锛?   - 蹇€熻瘖鏂細閫傚悎蹇€熺湅闂銆?   - 鏍囧噯鍒嗘瀽锛氶€傚悎鏃ュ父浣跨敤銆?   - 娣卞害澶嶇洏锛氫細杈撳嚭鏇村 trace銆佹寚鏍囧彛寰勫拰鍘熷缁撴灉銆?4. 閫夋嫨浜や粯鏍煎紡锛?   - 涓氬姟鎶ュ憡锛氶€傚悎鍒嗘瀽甯堝拰涓氬姟璐熻矗浜恒€?   - 绠＄悊鎽樿锛氶€傚悎鑰佹澘鎴栫鐞嗗眰銆?   - 璇婃柇娓呭崟锛氶€傚悎妫€鏌ユ暟鎹川閲忓拰瀛楁鍙ｅ緞銆?5. 鐐瑰嚮寮€濮嬪垎鏋愶紝瀹屾垚鍚庢煡鐪嬪浘琛ㄣ€佹姤鍛娿€佽拷闂拰瀵煎嚭銆?
-## 褰撳墠鑳藉姏
+```powershell
+python -m backend.fastapi_app --host 127.0.0.1 --port 8002
+```
 
-- CSV / Excel 澶?sheet 鏁版嵁鍒嗘瀽
-- 鏁版嵁璐ㄩ噺璇勫垎銆佺己澶卞€笺€侀噸澶嶈銆佸父閲忓瓧娈垫鏌?- 涓氬姟璇箟璇嗗埆锛氭敹鍏ャ€侀攢閲忋€佸尯鍩熴€佷骇鍝併€佹棩鏈熴€佹垚鏈€佸埄娑︾瓑
-- 鑷姩鐢熸垚鍒嗘瀽璁″垝銆佸叧閿礊瀵熴€佽鍔ㄥ缓璁拰鎸囨爣鍙ｅ緞
-- 鍥捐〃瑙勬牸锛氭煴鐘跺浘銆佽秼鍔垮浘銆佹暟鍊艰寖鍥村浘銆佸垎缁勮础鐚浘
-- 瀵煎嚭 Markdown銆丠TML銆丆SV 鎽樿銆丳DF銆丳PTX
-- 浠诲姟鍘嗗彶銆佺姸鎬佹椂闂寸嚎銆佸彇娑堜换鍔°€佸璁℃棩蹇椼€佽繍琛屾寚鏍?- FastAPI / OpenAPI銆丳ostgreSQL銆丷edis/RQ worker銆丏ocker 娌欑鍏ュ彛
+打开应用：
 
-## 鐢熶骇杩愯寤鸿
+```text
+http://127.0.0.1:8002
+```
 
-鐢熶骇鐜寤鸿浣跨敤锛?
+OpenAPI 文档：
+
+```text
+http://127.0.0.1:8002/docs
+```
+
+如果 8002 被占用，可以换成 8003 或其他端口。
+
+## 推荐使用方式
+
+1. 上传 CSV 或 Excel 文件。
+2. 选择业务场景，例如销售、电商、财务、客户运营。
+3. 选择分析深度：
+   - 快速诊断：适合快速查看主要问题。
+   - 标准分析：适合日常经营分析。
+   - 深度复盘：会输出更多 trace、指标口径和原始结果。
+4. 选择交付格式：
+   - 业务报告：适合分析师和业务负责人。
+   - 管理摘要：适合老板或管理层。
+   - 诊断清单：适合检查数据质量和字段口径。
+5. 点击开始分析，完成后查看图表、报告、追问和导出。
+
+## 当前能力
+
+- CSV / Excel 多 sheet 数据分析。
+- 数据质量评分、缺失值、重复行、常量字段检查。
+- 业务语义识别：收入、销量、区域、产品、日期、成本、利润等。
+- 自动生成分析计划、关键洞察、行动建议和指标口径。
+- 图表规格：柱状图、趋势图、数值范围图、分组贡献图。
+- 导出 Markdown、HTML、CSV 摘要、PDF、PPTX。
+- 任务历史、状态时间线、取消任务、审计日志、运行指标。
+- FastAPI / OpenAPI、PostgreSQL、Redis/RQ worker、Docker 沙箱入口。
+
+## 生产运行建议
+
+生产环境建议显式配置：
+
+```text
+DATA_ANALYST_AGENT_ENV=prod
+DATA_ANALYST_AGENT_API_TOKEN=<strong-token>
+DATA_ANALYST_AGENT_DATABASE_URL=postgresql://user:password@localhost:5432/data_analyst_agent
+DATA_ANALYST_AGENT_REDIS_URL=redis://localhost:6379/0
+DATA_ANALYST_AGENT_EXECUTOR_MODE=docker
+DATA_ANALYST_AGENT_MAX_UPLOAD_MB=10
+DATA_ANALYST_AGENT_MAX_CONCURRENT_JOBS=2
+DATA_ANALYST_AGENT_RATE_LIMIT_PER_MINUTE=60
+```
+
+生产启动：
+
 ```powershell
 python -m backend.fastapi_app --host 0.0.0.0 --port 8000
 python -m backend.worker
 ```
 
-寤鸿閰嶇疆锛?
-```text
-DATA_ANALYST_AGENT_API_TOKEN
-DATA_ANALYST_AGENT_DATABASE_URL
-DATA_ANALYST_AGENT_REDIS_URL
-DATA_ANALYST_AGENT_EXECUTOR_MODE=docker
-DATA_ANALYST_AGENT_MAX_UPLOAD_MB
-DATA_ANALYST_AGENT_MAX_CONCURRENT_JOBS
-DATA_ANALYST_AGENT_RATE_LIMIT_PER_MINUTE
-```
+本地 `in_process` Python 执行器只用于开发和演示；生产环境必须使用 Docker executor。
 
-## 楠岃瘉鍛戒护
+## 验证命令
 
 ```powershell
 python -m compileall data_analyst_agent backend evals
 node --check frontend\app.js
+node --check frontend\labels.js
+node --check frontend\charts.js
 python -m unittest discover -s tests
 python -m evals.run_evals
 ```
 
-## 甯歌闂
+生产 Compose 服务启动后，可以运行端到端验证：
 
-### 绔彛琚崰鐢?
-鎹竴涓鍙ｏ細
+```powershell
+python scripts\production_e2e_check.py --base-url http://127.0.0.1:8000 --token $env:DATA_ANALYST_AGENT_API_TOKEN
+```
+
+## 常见问题
+
+### 端口被占用
+
+换一个端口：
 
 ```powershell
 python -m backend.fastapi_app --host 127.0.0.1 --port 8003
 ```
 
-### PDF 涓枃涔辩爜
+### Excel 读取失败
 
-褰撳墠鐗堟湰宸茶嚜鍔ㄥ祵鍏ヤ腑鏂囧瓧浣撱€備慨鏀逛唬鐮佸悗闇€瑕侀噸鍚湇鍔★紝骞堕噸鏂板鍑?PDF銆?
-### Excel 璇诲彇澶辫触
+请确认已经安装生产依赖：
 
-瀹夎鐢熶骇渚濊禆锛?
 ```powershell
 python -m pip install -e .[prod]
 ```
 
-### 鎶ュ憡鍙湁灏戦噺鍥捐〃
+### PDF 中文乱码
 
-閫夋嫨锛?
+PDF 导出需要系统中存在微软雅黑、黑体、宋体、文泉驿或 Noto Sans CJK 等中文字体。安装字体后重启服务，并重新导出 PDF。
+
+### 报告只有少量图表
+
+可以选择：
+
 ```text
-鍒嗘瀽娣卞害锛氭繁搴﹀鐩?浜や粯鏍煎紡锛氫笟鍔℃姤鍛?```
+分析深度：深度复盘
+交付格式：业务报告
+```

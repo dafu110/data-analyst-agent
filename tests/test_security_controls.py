@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from unittest.mock import Mock
 
@@ -220,6 +221,59 @@ class SecurityControlTests(unittest.TestCase):
         )
         self.assertEqual(metrics_response.status_code, 200)
         self.assertIn("data_analyst_agent_jobs_total", metrics_response.text)
+
+    def test_fastapi_report_paths_must_stay_inside_report_dir_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except RuntimeError:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        now = utc_now()
+        outside_report = Path(fastapi_app.CONFIG.report_dir).resolve().parent / f"{Path(fastapi_app.CONFIG.report_dir).name}-outside.md"
+        job = JobRecord(
+            id="report-path-test",
+            filename="sales.csv",
+            goal="test",
+            status="completed",
+            created_at=now,
+            updated_at=now,
+            owner="alice",
+            report_path=str(outside_report),
+            result={},
+        )
+
+        outside_report.write_text("# outside", encoding="utf-8")
+        try:
+            with patch.object(fastapi_app.JOB_STORE, "get", return_value=job):
+                response = TestClient(fastapi_app.create_app()).get(
+                    "/api/reports/report-path-test",
+                    headers={"X-Actor": "alice", "X-Role": "analyst"},
+                )
+        finally:
+            outside_report.unlink(missing_ok=True)
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_fastapi_report_format_is_an_explicit_contract_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except RuntimeError:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        response = TestClient(fastapi_app.create_app()).get(
+            "/api/reports/missing-job?format=zip",
+            headers={"X-Actor": "alice", "X-Role": "analyst"},
+        )
+
+        self.assertEqual(response.status_code, 422)
 
     def test_stdlib_server_adds_security_headers(self) -> None:
         handler = object.__new__(DataAnalystRequestHandler)

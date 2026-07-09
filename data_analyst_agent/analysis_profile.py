@@ -38,7 +38,7 @@ def compute_quality_score(profile: DatasetProfile, duplicate_rows: int = 0) -> t
     missing_total = sum(profile.missing_values.values())
     completeness = 1 - missing_total / total_cells
     uniqueness = 1 - duplicate_rows / max(profile.rows, 1)
-    constant_columns = sum(1 for warning in profile.warnings if warning.startswith("Constant columns detected"))
+    constant_columns = count_constant_columns(profile.warnings)
     variability = 1 - constant_columns / max(profile.columns, 1)
     schema = 1.0 if profile.columns > 0 and profile.rows > 0 else 0.0
     dimensions = {
@@ -49,6 +49,18 @@ def compute_quality_score(profile: DatasetProfile, duplicate_rows: int = 0) -> t
     }
     score = 0.4 * dimensions["completeness"] + 0.25 * dimensions["uniqueness"] + 0.2 * dimensions["variability"] + 0.15 * dimensions["schema"]
     return round(score, 4), dimensions
+
+
+def count_constant_columns(warnings: Iterable[str]) -> int:
+    total = 0
+    for warning in warnings:
+        if not warning.startswith("Constant columns detected:"):
+            continue
+        columns_text = warning.split(":", 1)[1].strip().rstrip(".")
+        if not columns_text:
+            continue
+        total += len([column for column in columns_text.split(",") if column.strip()])
+    return total
 
 
 def detect_date_columns(df: pd.DataFrame) -> list[str]:

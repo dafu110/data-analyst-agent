@@ -4,17 +4,14 @@ from urllib.parse import urlparse
 
 import pandas as pd
 
-
-BLOCKED_SQL_TERMS = (" insert ", " update ", " delete ", " drop ", " alter ", " attach ", " pragma ", " grant ", " revoke ")
+from data_analyst_agent.sql_safety import validate_readonly_select
 
 
 def validate_readonly_query(query: str) -> None:
-    query_lower = query.strip().lower()
-    if not query_lower.startswith("select"):
-        raise ValueError("数据库连接只允许 SELECT 查询。")
-    padded = f" {query_lower} "
-    if any(term in padded for term in BLOCKED_SQL_TERMS):
-        raise ValueError("SQL 包含被禁止的写入或管理操作。")
+    try:
+        validate_readonly_select(query)
+    except ValueError as exc:
+        raise ValueError(f"数据库连接只允许单条只读 SELECT 查询：{exc}") from exc
 
 
 def validate_database_url(database_url: str, allowed_hosts: set[str]) -> None:
@@ -28,7 +25,7 @@ def validate_database_url(database_url: str, allowed_hosts: set[str]) -> None:
 def load_database_query(database_url: str, query: str, allowed_hosts: set[str], limit: int = 100_000) -> pd.DataFrame:
     validate_database_url(database_url, allowed_hosts)
     validate_readonly_query(query)
-    limited_query = f"select * from ({query.rstrip(';')}) as agent_source limit {int(limit)}"
+    limited_query = f"select * from ({validate_readonly_select(query)}) as agent_source limit {int(limit)}"
     try:
         import sqlalchemy
     except ImportError as exc:  # pragma: no cover

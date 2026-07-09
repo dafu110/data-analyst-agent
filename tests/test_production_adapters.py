@@ -134,6 +134,12 @@ class ProductionAdapterTests(unittest.TestCase):
         self.assertTrue(script.exists())
         self.assertIn("/api/metrics.prometheus", script.read_text(encoding="utf-8"))
 
+    def test_production_verification_documents_all_export_formats(self) -> None:
+        verification = (ROOT / "docs" / "PRODUCTION_VERIFICATION.zh-CN.md").read_text(encoding="utf-8")
+
+        self.assertIn("Markdown、HTML、CSV", verification)
+        self.assertIn("PDF、PPTX", verification)
+
     def test_production_e2e_runbook_documents_socket_boundary(self) -> None:
         runbook = (ROOT / "docs" / "PRODUCTION_E2E_CHECK.zh-CN.md").read_text(encoding="utf-8")
 
@@ -145,6 +151,10 @@ class ProductionAdapterTests(unittest.TestCase):
         validate_readonly_query("select * from orders")
         with self.assertRaises(ValueError):
             validate_readonly_query("delete from orders")
+        with self.assertRaises(ValueError):
+            validate_readonly_query("select * from orders; select * from users")
+        with self.assertRaises(ValueError):
+            validate_readonly_query("select * from orders /* hide */")
         with self.assertRaises(ValueError):
             validate_database_url("postgresql://user:pass@evil.example/db", {"localhost"})
 
@@ -162,6 +172,40 @@ class ProductionAdapterTests(unittest.TestCase):
         self.assertEqual(bundle.source_type, "excel")
         self.assertEqual(len(bundle.primary), 3)
         self.assertEqual(set(bundle.tables), {"small", "large"})
+
+    def test_csv_loader_handles_common_chinese_encoding(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "chinese.csv"
+            path.write_bytes("地区,收入\n华北,10\n华南,20\n".encode("gb18030"))
+
+            bundle = load_dataset_bundle(path)
+
+        self.assertEqual(bundle.source_type, "csv")
+        self.assertEqual(list(bundle.primary.columns), ["地区", "收入"])
+        self.assertEqual(bundle.primary.iloc[0]["地区"], "华北")
+
+    def test_csv_loader_sniffs_semicolon_delimited_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "semicolon.csv"
+            path.write_text("region;revenue\nNorth;10\nSouth;20\n", encoding="utf-8")
+
+            bundle = load_dataset_bundle(path)
+
+        self.assertEqual(list(bundle.primary.columns), ["region", "revenue"])
+        self.assertEqual(int(bundle.primary["revenue"].sum()), 30)
+
+    def test_excel_multi_sheet_loader_prefers_informative_sheet_over_empty_rows(self) -> None:
+        fake_sheets = {
+            "empty_rows": pd.DataFrame({"a": [None] * 10, "b": [None] * 10}),
+            "useful": pd.DataFrame({"region": ["North", "South"], "revenue": [10, 20]}),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "demo.xlsx"
+            path.write_bytes(b"placeholder")
+            with patch("pandas.read_excel", return_value=fake_sheets):
+                bundle = load_dataset_bundle(path)
+
+        self.assertEqual(list(bundle.primary.columns), ["region", "revenue"])
 
     def test_relationship_inference_finds_matching_ids(self) -> None:
         tables = {

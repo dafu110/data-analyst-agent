@@ -47,12 +47,21 @@ class FastApiSmokeTests(unittest.TestCase):
         self.assertGreaterEqual(len(job_payload["result"].get("chart_specs", [])), 4)
         self.assertIn("report_markdown", job_payload["result"])
 
-        for export_format in ("md", "html", "csv"):
+        expected_exports = {
+            "md": ("text/markdown", b"#"),
+            "html": ("text/html", b"<!doctype html>"),
+            "csv": ("text/csv", b"title,type"),
+            "pdf": ("application/pdf", b"%PDF"),
+            "pptx": ("application/vnd.openxmlformats-officedocument.presentationml.presentation", b"PK"),
+        }
+        for export_format, (expected_content_type, expected_prefix) in expected_exports.items():
             export_response = client.get(
                 f"/api/reports/{job_id}?format={export_format}",
                 headers={"X-Actor": "smoke", "X-Org": "default", "X-Workspace": "default", "X-Role": "analyst"},
             )
             self.assertEqual(export_response.status_code, 200, export_response.text[:200])
+            self.assertIn(expected_content_type, export_response.headers["content-type"])
+            self.assertTrue(export_response.content.startswith(expected_prefix))
             self.assertGreater(len(export_response.content), 100)
 
     def test_fastapi_rejects_oversized_upload_when_available(self) -> None:
