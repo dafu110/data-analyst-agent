@@ -24,6 +24,19 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("window.DataAnalystUI.runtime", state)
         self.assertIn('<script src="/labels.js"></script>', index)
 
+    def test_github_portfolio_docs_are_linked_from_readme(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        api_doc = (ROOT / "docs" / "API.md").read_text(encoding="utf-8")
+        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+
+        self.assertIn("actions/workflows/ci.yml/badge.svg", readme)
+        self.assertIn("docs/API.md", readme)
+        self.assertIn("CHANGELOG.md", readme)
+        self.assertIn("# API Surface", api_doc)
+        self.assertIn("POST /api/analyze", api_doc)
+        self.assertIn("GET /api/reports/{job_id}", api_doc)
+        self.assertIn("## [0.2.0] - 2026-07-09", changelog)
+
     def test_frontend_labels_are_split_from_main_app_file(self) -> None:
         labels = (ROOT / "frontend" / "labels.js").read_text(encoding="utf-8")
         app = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")

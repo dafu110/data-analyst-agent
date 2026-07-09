@@ -35,7 +35,7 @@ python -m compileall data_analyst_agent backend evals scripts: passed
 node --check frontend\app.js: passed
 node --check frontend\labels.js: passed
 node --check frontend\charts.js: passed
-python -m unittest discover -s tests: 73 tests passed
+python -m unittest discover -s tests: 74 tests passed
 FastAPI smoke export coverage: Markdown, HTML, CSV, PDF, and PPTX passed
 python -m evals.run_evals: 6/6 eval cases passed
 python -m backend.production_check: local dependency/configuration checks passed

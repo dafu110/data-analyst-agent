@@ -1,10 +1,22 @@
 # Data Analyst Agent
 
+[![CI](https://github.com/dafu110/data-analyst-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/dafu110/data-analyst-agent/actions/workflows/ci.yml)
+
 一个中文数据分析 Agent / SaaS 原型，用于上传 CSV、Excel 或连接数据库后，自动完成数据画像、字段识别、质量检查、图表建议、业务洞察、报告导出和追问分析。
 
 ## 界面截图
 
 ![Data Analyst Agent 中文工作台](docs/assets/data-analyst-agent-workbench.png)
+
+## 发布验证
+
+| 检查项 | 当前结果 |
+| --- | --- |
+| 单元测试 | `74 tests passed` |
+| 离线 eval | `6/6 eval cases passed` |
+| 前端语法检查 | `frontend/app.js`、`frontend/labels.js`、`frontend/charts.js` 通过 |
+| 报告导出 smoke | Markdown、HTML、CSV、PDF、PPTX 通过 |
+| 生产外部依赖 | Docker / PostgreSQL / Redis/RQ 仍需在真实环境运行 `--require-external` |
 
 ## 当前能力
 
@@ -170,10 +182,12 @@ docker/                  Python 沙箱镜像和运行脚本
 ## 关键文档
 
 - [中文快速开始](docs/QUICKSTART.zh-CN.md)
+- [API 接口说明](docs/API.md)
 - [生产级端到端验证清单](docs/PRODUCTION_VERIFICATION.zh-CN.md)
 - [运维手册](docs/OPERATIONS.md)
 - [Launch hardening checklist](docs/launch-hardening.md)
 - [ADR: Sandboxed analysis execution](docs/adr/0001-sandboxed-analysis-execution.md)
+- [更新日志](CHANGELOG.md)
 
 ## 建议运行顺序
 
