@@ -3906,3 +3906,447 @@ body:not(.has-dataset):not(.has-result) .empty-state {
     flex: 1 1 120px;
   }
 }
+
+/* Codex light theme pass: one accent color, quiet surfaces, dense workbench rhythm. */
+:root {
+  --ink: #171717;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --line-strong: #d4d4d8;
+  --panel: #ffffff;
+  --surface: #fafafa;
+  --surface-2: #f4f4f5;
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --blue-soft: #eff6ff;
+  --green: #404040;
+  --green-soft: #f5f5f5;
+  --amber: #404040;
+  --amber-soft: #f5f5f5;
+  --red: #404040;
+  --red-soft: #f5f5f5;
+  --violet: #404040;
+  --chart-primary: var(--blue);
+  --chart-highlight: var(--blue);
+  --chart-negative: var(--blue);
+  --chart-grid: #e5e7eb;
+  --chart-fill: rgba(37, 99, 235, 0.08);
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --button-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+html,
+body {
+  background: #f7f7f8;
+}
+
+body {
+  background: #f7f7f8;
+}
+
+.app-shell {
+  padding: 14px;
+}
+
+.workspace {
+  gap: 14px;
+  max-width: 1500px;
+}
+
+.control-panel,
+.result-panel {
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.control-panel {
+  padding: 18px;
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+.result-panel {
+  background: #ffffff;
+}
+
+.brand-mark {
+  color: #ffffff;
+  background: #171717;
+  box-shadow: none;
+}
+
+.brand-mark span::before,
+.brand-mark span::after {
+  border-color: #ffffff;
+  background: #ffffff;
+  box-shadow: -13px 9px 0 rgba(255, 255, 255, 0.9);
+}
+
+.agent-state-card,
+.quickstart-panel,
+.source-panel,
+.preflight-panel,
+.confidence-panel,
+.settings-disclosure,
+.data-preview,
+.guardrail-box,
+.command-card,
+.transparency-card,
+.stage-rail,
+.section-block,
+.startup-card,
+.metric,
+.summary-card,
+.answer-card,
+.decision-card,
+.plan-card,
+.chart-card,
+.tool-card,
+.history-card,
+.job-row,
+.quality-gate,
+.action-item,
+.definition-item,
+.followup-action,
+.review-item,
+.export-check-item,
+.trust-grid article,
+.insight-item,
+.account-usage-item,
+.alert-item {
+  border-color: var(--line);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.topbar,
+.agent-command-bar,
+.agent-transparency-panel,
+.result-detail-disclosure,
+.tabs,
+.preview-table th,
+.chart-interaction-toolbar,
+.asset-toolbar,
+.report-toolbar,
+.summary-grid > div,
+.chart-stat,
+.chart-view-switch {
+  background: var(--surface);
+}
+
+.agent-state-card,
+.primary-command,
+.reasoning-card,
+.intervention-card,
+.quickstart-panel,
+.metric,
+.decision-card,
+.chart-card,
+.history-card,
+.startup-card,
+.summary-card,
+.answer-card,
+.plan-card,
+.tool-card {
+  background: #ffffff;
+}
+
+.file-drop,
+.template-chip,
+.segment,
+.secondary-action,
+.tab,
+.advanced-tabs summary,
+.stage-pill,
+.chip,
+.tool-pill,
+.quality-gate strong span,
+.action-item strong span,
+.definition-item strong span,
+.run-status,
+.startup-badge,
+.alert-status,
+.chart-view-chip {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.template-chip:hover,
+.segment:hover,
+.secondary-action:hover,
+.tab:hover,
+.advanced-tabs summary:hover,
+.chart-view-chip:hover,
+.file-drop:hover {
+  color: var(--blue-dark);
+  border-color: var(--blue);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  transform: none;
+}
+
+.segment.active,
+.tab.active,
+.chart-view-chip.active,
+.stage-pill.active {
+  color: var(--blue-dark);
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.1);
+}
+
+.primary-action,
+.primary-action:hover {
+  color: #ffffff;
+  background: var(--blue);
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.22);
+  transform: none;
+}
+
+.primary-action:disabled {
+  color: #ffffff;
+  background: #93a4c7;
+}
+
+.eyebrow,
+.guardrail-box strong,
+.confidence-panel strong,
+.chart-kicker,
+.chart-meta,
+.metric span,
+.command-label,
+.field-label {
+  color: var(--muted);
+}
+
+.agent-state-card strong,
+.topbar h2,
+.command-card strong,
+.transparency-card strong,
+.section-heading h3,
+.metric strong,
+.startup-card strong,
+.trust-grid strong {
+  color: var(--ink);
+}
+
+textarea,
+.text-input,
+.field-mapping-row select {
+  border-color: var(--line-strong);
+  background: #ffffff;
+}
+
+textarea:focus,
+.text-input:focus,
+.field-mapping-row select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.file-icon,
+.startup-icon,
+.status-dot,
+.reasoning-list li::before,
+.activity-list li::before,
+.activity-list li.completed::before,
+.activity-list li.running::before,
+.activity-list li.queued::before,
+.activity-list li.failed::before,
+.activity-list li.cancelled::before,
+.timeline-row::before,
+.timeline-row.running::before,
+.timeline-row.completed::before,
+.timeline-row.failed::before {
+  color: var(--blue);
+  background: var(--blue);
+  box-shadow: none;
+}
+
+.stage-pill.done,
+.run-status.done,
+.run-status.running,
+.run-status.failed,
+.run-status.queued,
+.intervention-card.needs-review,
+.intervention-card.blocked,
+.intervention-card.failed,
+.timeline-row.running,
+.timeline-row.completed,
+.timeline-row.failed,
+.quality-gate.pass,
+.quality-gate.review,
+.quality-gate.fail,
+.action-item.high,
+.review-item.ok,
+.review-item.needs-review,
+.review-item.blocked,
+.insight-item.success,
+.insight-item.warning,
+.alert-item.ok,
+.alert-item.warning,
+.alert-item.critical,
+.alert-status.ok,
+.alert-status.warning,
+.alert-status.critical,
+.has-result #humanReviewBlock,
+.has-result #actionBlock {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: #ffffff;
+}
+
+.run-status::before,
+.status-dot {
+  background: currentColor;
+}
+
+.run-status.done::before,
+.run-status.running::before,
+.run-status.failed::before,
+.run-status.queued::before {
+  color: var(--blue);
+}
+
+.danger-action,
+.danger-action:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.has-result #overview.active {
+  background: #ffffff;
+}
+
+.report-text,
+code,
+pre {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.chart-bar,
+.chart-line-path,
+.chart-point,
+.range-point,
+.range-end,
+.legend-primary,
+.legend-highlight,
+.legend-negative,
+.legend-range {
+  color: var(--blue);
+  fill: var(--blue);
+  stroke: var(--blue);
+}
+
+.chart-grid-line,
+.chart-baseline {
+  stroke: var(--chart-grid);
+}
+
+.chart-line-area {
+  fill: var(--chart-fill);
+}
+
+/* Lighter line icons for the first screen. Keep the single accent without solid blocks. */
+.file-icon,
+.startup-icon {
+  color: var(--blue);
+  border: 1px solid #d8e3f7;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 3px #f5f8ff;
+}
+
+.file-icon {
+  border-radius: 10px;
+}
+
+.file-icon::before {
+  left: 10px;
+  top: 17px;
+  width: 16px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 4px 4px;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.file-icon::after {
+  left: 16px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  background: transparent;
+  box-shadow: none;
+  transform: rotate(45deg);
+}
+
+.startup-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.startup-icon::before,
+.startup-icon::after {
+  background: transparent;
+  box-shadow: none;
+}
+
+.profile-icon::before {
+  inset: 8px;
+  border-width: 1.75px;
+  border-radius: 4px;
+}
+
+.profile-icon::after {
+  left: 12px;
+  right: 12px;
+  bottom: 11px;
+  height: 1.75px;
+  background: currentColor;
+  box-shadow: none;
+}
+
+.quality-icon::before {
+  left: 10px;
+  top: 8px;
+  width: 13px;
+  height: 9px;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+}
+
+.insight-icon::before {
+  left: 9px;
+  bottom: 8px;
+  width: 2px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 2px;
+  box-shadow: 6px -4px 0 currentColor, 12px -9px 0 currentColor;
+}
+
+.report-icon::before {
+  inset: 8px 10px;
+  border-width: 1.75px;
+  border-radius: 4px;
+}
+
+.report-icon::after {
+  left: 13px;
+  right: 13px;
+  top: 14px;
+  height: 1.75px;
+  background: currentColor;
+  box-shadow: 0 5px 0 currentColor;
+}

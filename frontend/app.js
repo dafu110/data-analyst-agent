@@ -1888,7 +1888,7 @@ function renderChart(spec, index = 0) {
       const barWidth = Math.max(2, Math.abs(rawValue) / maxAbs * plotWidth);
       const x = labelWidth;
       const y = index * rowHeight + 22;
-      const fill = rawValue < 0 ? "#c24135" : "#2563eb";
+      const fill = "#2563eb";
       return `
         <text x="0" y="${y + 15}" class="chart-label">${escapeHtml(row[spec.x])}</text>
         <rect x="${x}" y="${y}" width="${barWidth}" height="18" rx="3" fill="${fill}"></rect>
