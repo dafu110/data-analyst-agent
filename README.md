@@ -62,7 +62,7 @@ README 不把某次本地测试数量当作持续有效的质量结论。顶部 
 
 `data_analyst_agent/` 负责数据画像、分析规划、受控执行与报告生成；`backend/` 提供 API、任务和导出服务；`frontend/` 提供中文工作台。
 
-### 本地运行命令
+### 进阶命令
 
 安装依赖：
 
@@ -196,10 +196,6 @@ $env:DATA_ANALYST_AGENT_REDIS_URL="redis://localhost:6379/0"
 ```
 
 当 `DATA_ANALYST_AGENT_ENV` 为 `prod` 或 `production` 时，服务会强制检查 API Token、Docker 沙箱、PostgreSQL 和 Redis/RQ 配置，避免以本地开发默认值裸跑。
-
-### 实现细节
-
-分析链路由 `data_analyst_agent/` 负责画像、规划、执行与报告生成，`backend/` 提供 API、任务与导出服务，`frontend/` 提供中文工作台。
 
 ## 生产边界
 
