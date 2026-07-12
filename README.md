@@ -1,6 +1,16 @@
 # Data Analyst Agent
 
 [![CI](https://github.com/dafu110/data-analyst-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/dafu110/data-analyst-agent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+## `sales.csv` 结果示例
+
+以下结果由 `python -m data_analyst_agent.cli examples\sales.csv --goal "分析销售表现和数据质量"` 生成，可由同一命令复现：
+
+- 数据画像：10 行、5 列，质量评分 100%，所有字段缺失值为 0。
+- 区域结论：`East` 收入为 6120，占样例总收入的 42.6%（计算步骤：`profile`、`revenue-by-region`）。
+- 产品结论：`Notebook` 收入最高，为 8820；`Pen` 销量最高，为 285（计算步骤：`revenue-by-product`、`units-by-product`）。
+- 结果边界：样例没有日期字段且不足 30 行，因此生成报告会将趋势、同比和相关性结论标记为需要人工复核。
 
 一个中文数据分析 Agent / SaaS 原型，用于上传 CSV、Excel 或连接数据库后，自动完成数据画像、字段识别、质量检查、图表建议、业务洞察、报告导出和追问分析。
 
@@ -8,15 +18,19 @@
 
 ![Data Analyst Agent 中文工作台](docs/assets/data-analyst-agent-workbench.png)
 
-## 发布验证
+## 两分钟体验
 
-| 检查项 | 当前结果 |
-| --- | --- |
-| 单元测试 | `97 tests passed` |
-| 离线 eval | `6/6 eval cases passed` |
-| 前端语法检查 | `frontend/app.js`、`frontend/labels.js`、`frontend/charts.js` 通过 |
-| 报告导出 smoke | Markdown、HTML、CSV、PDF、PPTX 通过 |
-| 生产外部依赖 | Docker / PostgreSQL / Redis/RQ 仍需在真实环境运行 `--require-external` |
+1. 按[快速运行](#快速运行)启动服务，并打开 `http://127.0.0.1:8002`。
+2. 上传 `examples/sales.csv`，确认数据画像和质量检查后生成分析计划。
+3. 审核计划并查看分析详情，确认结论、执行证据和报告导出都可追溯。
+
+截图展示上传前的受控工作台。完整的结果态验证路径见 [销售复盘演示](docs/SALES_REVIEW_DEMO.md)：上传 `examples/sales.csv` 后，先审核数据画像和分析计划，再查看带来源步骤的结论与导出报告。
+
+## 可复现验证
+
+README 不把某次本地测试数量当作持续有效的质量结论。顶部 CI 徽章反映默认分支的当前状态；下面的[测试与验证](#测试与验证)命令可在本地复现单元测试、离线 eval、前端语法检查和导出 smoke。
+
+生产外部依赖仍需在目标环境中通过 `python -m backend.production_check --require-external` 验证 Docker、PostgreSQL、Redis/RQ 和受限沙箱。
 
 ## 当前能力
 
@@ -196,3 +210,7 @@ docker/                  Python 沙箱镜像和运行脚本
 3. 启动 `python -m backend.fastapi_app --host 127.0.0.1 --port 8002`
 4. 打开 `http://127.0.0.1:8002`
 5. 上传 `examples/sales.csv` 体验完整分析流程
+
+## License
+
+MIT. See [LICENSE](LICENSE).
