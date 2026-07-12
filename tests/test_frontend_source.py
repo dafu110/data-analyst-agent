@@ -73,6 +73,62 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn('["revenue", "收入"]', source)
         self.assertNotIn('["", "unspecified"]', source)
 
+    def test_csv_preview_supports_utf8_and_gb18030(self) -> None:
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function decodeCsvPreview(buffer)", source)
+        self.assertIn('new TextDecoder("utf-8", { fatal: true })', source)
+        self.assertIn('new TextDecoder("gb18030")', source)
+        self.assertIn("reader.readAsArrayBuffer(file.slice(0, 512 * 1024))", source)
+
+    def test_result_cards_link_back_to_execution_trace(self) -> None:
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("function appendTraceLinks(parent, stepIds)", source)
+        self.assertIn('activateTab("trace")', source)
+        self.assertIn("insight.source_step_ids", source)
+
+    def test_preflight_ui_ignores_stale_requests_and_binds_approved_contract(self) -> None:
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        state = (ROOT / "frontend" / "state.js").read_text(encoding="utf-8")
+
+        self.assertIn("preflightRequestId", source)
+        self.assertIn("requestId !== runtime.preflightRequestId", source)
+        self.assertIn("planInputVersion !== runtime.planInputVersion", source)
+        self.assertIn('payload.set("preflight_contract", runtime.approvedPlan.execution_contract)', source)
+        self.assertIn("function invalidateApprovedPlan()", source)
+        self.assertIn("preflightLoading", state)
+
+    def test_navigation_separates_workflow_analysis_and_management_layers(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('class="advanced-tabs analysis-tabs"', index)
+        self.assertIn('class="advanced-tabs management-tabs"', index)
+        self.assertIn('class="settings-disclosure access-disclosure management-disclosure"', index)
+        self.assertIn('activeTab?.closest("details")?.setAttribute("open", "")', source)
+
+    def test_sales_workspace_shows_assignable_actions(self) -> None:
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('businessScenario.value = "sales"', source)
+        self.assertIn("className = \"action-assignment\"", source)
+        self.assertIn("负责人：${item.owner_hint", source)
+        self.assertIn("预期：${item.expected_impact", source)
+        self.assertIn('name="goal" rows="5" placeholder=', index)
+        self.assertIn('data-goal-template=', index)
+        self.assertIn('value="manager" selected', index)
+        self.assertIn('value="quick" selected', index)
+
+    def test_safety_evidence_is_visible_in_the_result_workspace(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="executionSafetyBlock"', index)
+        self.assertIn("function renderExecutionSafety(data)", source)
+        self.assertIn("data.preflight_contract?.security_findings", source)
+
     def test_result_mode_collapses_secondary_agent_details(self) -> None:
         index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
         source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
@@ -82,6 +138,16 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn('removeAttribute("open")', source)
         self.assertIn(".has-result .agent-detail-disclosure:not([open]) .agent-transparency-panel", styles)
 
+    def test_default_workflow_keeps_plan_approval_and_evidence_on_demand(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('class="overview-evidence-disclosure"', index)
+        self.assertIn('planApprovalBlock?.classList.remove("hidden")', source)
+        self.assertIn('activateTab("overview")', source)
+        self.assertIn(".has-dataset:not(.has-result) .dictionary-disclosure:not([open])", styles)
+
     def test_initial_state_hides_workbench_controls_until_dataset_exists(self) -> None:
         styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
 
@@ -89,6 +155,18 @@ class FrontendSourceTests(unittest.TestCase):
         self.assertIn("body:not(.has-dataset):not(.has-result) .source-panel", styles)
         self.assertIn("body:not(.has-dataset):not(.has-result) .preflight-panel", styles)
         self.assertIn("body:not(.has-dataset):not(.has-result) .tabs", styles)
+
+    def test_empty_state_prioritizes_upload_and_disables_plan_until_a_dataset_exists(self) -> None:
+        index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")
+        app = (ROOT / "frontend" / "app.js").read_text(encoding="utf-8")
+        styles = (ROOT / "frontend" / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('aria-describedby="planActionHint"', index)
+        self.assertIn('id="emptyUseExampleData"', index)
+        self.assertIn('setStatus("idle", "等待上传")', app)
+        self.assertIn("function updatePlanActionAvailability()", app)
+        self.assertIn("submitButton.disabled = !hasDataset || isBusy", app)
+        self.assertIn("align-content: start", styles)
 
     def test_saas_usage_and_bi_controls_are_exposed(self) -> None:
         index = (ROOT / "frontend" / "index.html").read_text(encoding="utf-8")

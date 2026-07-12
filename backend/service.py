@@ -10,6 +10,7 @@ from backend.audit import AuditContext, audit
 from backend.config import AppConfig
 from backend.job_store import JobStore, job_to_dict
 from data_analyst_agent.agent import DataAnalystAgent
+from data_analyst_agent.models import AnalysisPlan
 from data_analyst_agent.options import AnalysisOptions, parse_analysis_options
 from data_analyst_agent.serialization import agent_result_to_dict
 
@@ -40,6 +41,8 @@ def create_analysis_job(
     data_dictionary: dict[str, str] | None,
     analysis_options: AnalysisOptions | dict[str, str] | None,
     context: AuditContext,
+    approved_plan: AnalysisPlan | None = None,
+    preflight_contract: dict[str, Any] | None = None,
     enqueue: bool = False,
 ) -> dict[str, Any]:
     upload_path = save_upload(filename, dataset_bytes, config)
@@ -58,14 +61,15 @@ def create_analysis_job(
             "workspace": workspace,
             "queued": enqueue,
             "analysis_options": options.to_dict(),
+            "preflight_contract": preflight_contract or {},
         },
     )
     if enqueue:
-        enqueue_analysis_job(job.id, str(upload_path), filename, goal, workspace, data_dictionary, options)
+        enqueue_analysis_job(job.id, str(upload_path), filename, goal, workspace, data_dictionary, options, approved_plan, preflight_contract)
     else:
         thread = threading.Thread(
             target=run_analysis_job,
-            args=(store, semaphore, job.id, upload_path, filename, goal, config, workspace, data_dictionary, options),
+            args=(store, semaphore, job.id, upload_path, filename, goal, config, workspace, data_dictionary, options, approved_plan, preflight_contract),
             daemon=True,
         )
         thread.start()
@@ -80,12 +84,14 @@ def enqueue_analysis_job(
     workspace: str,
     data_dictionary: dict[str, str] | None,
     analysis_options: AnalysisOptions | dict[str, str] | None,
+    approved_plan: AnalysisPlan | None = None,
+    preflight_contract: dict[str, Any] | None = None,
 ) -> None:
     try:
         from backend.worker import enqueue_job
     except ImportError as exc:
         raise RuntimeError("队列模式需要安装 redis 和 rq。") from exc
-    enqueue_job(job_id, upload_path, filename, goal, workspace, data_dictionary, normalize_analysis_options(analysis_options).to_dict())
+    enqueue_job(job_id, upload_path, filename, goal, workspace, data_dictionary, normalize_analysis_options(analysis_options).to_dict(), approved_plan, preflight_contract)
 
 
 def run_analysis_job(
@@ -99,6 +105,8 @@ def run_analysis_job(
     workspace: str = "default",
     data_dictionary: dict[str, str] | None = None,
     analysis_options: AnalysisOptions | dict[str, str] | None = None,
+    approved_plan: AnalysisPlan | None = None,
+    preflight_contract: dict[str, Any] | None = None,
 ) -> None:
     acquired = True
     if semaphore is not None:
@@ -126,7 +134,9 @@ def run_analysis_job(
             goal,
             source_name=filename,
             data_dictionary=data_dictionary,
+            input_security_findings=(preflight_contract or {}).get("security_findings", []),
             analysis_options=options,
+            approved_plan=approved_plan,
             is_cancelled=lambda: store.is_cancelled(job_id),
             tool_timeout_seconds=max(1, min(config.job_timeout_seconds, 30)),
         )
@@ -140,6 +150,13 @@ def run_analysis_job(
         payload["source_filename"] = filename
         payload["job_id"] = job_id
         payload["workspace"] = workspace
+        if preflight_contract:
+            payload["preflight_contract"] = preflight_contract
+            payload["approved_plan"] = {
+                "id": preflight_contract.get("plan_id"),
+                "fingerprint": preflight_contract.get("fingerprint"),
+                "plan": agent_result_to_dict(result).get("plan"),
+            }
         store.add_event(job_id, "Executing tools", "completed", "Python 和 SQL 分析步骤已完成。")
         config.report_dir.mkdir(parents=True, exist_ok=True)
         report_path = config.report_dir / f"{job_id}.md"

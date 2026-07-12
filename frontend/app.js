@@ -10,17 +10,23 @@
   apiTokenInput,
   fileInput,
   fileName,
+  centralUpload,
+  resultDatasetName,
+  resultGoalSummary,
+  reopenAnalysisSettings,
   goalInput,
   dataDictionaryInput,
   reportAudience,
   deliveryFormat,
   dataPreview,
   previewMeta,
+  preflightState,
   fieldMappingList,
   applyFieldMapping,
   clearFieldMapping,
   previewTable,
   submitButton,
+  planActionHint,
   statusBadge,
   taskTitle,
   emptyState,
@@ -38,6 +44,9 @@
   qualityGateBlock,
   qualityGateList,
   qualityGateCount,
+  executionSafetyBlock,
+  executionSafetyList,
+  executionSafetyCount,
   qualityList,
   qualityCount,
   columnList,
@@ -140,6 +149,7 @@ function setWorkspaceMode(mode, enabled = true) {
       workspace?.classList.remove(item);
       document.body.classList.remove(item);
     });
+    [appShell, workspace, document.body].forEach((target) => target?.classList.remove("is-editing-result"));
     return;
   }
   [appShell, workspace, document.body].forEach((target) => target?.classList.toggle(mode, enabled));
@@ -163,6 +173,9 @@ planInput.value = localStorage.getItem("daa.plan") || planInput.value || "free";
 workspaceInput.value = localStorage.getItem("daa.workspace") || workspaceInput.value || "default";
 apiTokenInput.value = "";
 localStorage.removeItem("daa.apiToken");
+  if (!businessScenario.value || businessScenario.value === "general") businessScenario.value = "sales";
+  setStatus("idle", "等待上传");
+  updatePlanActionAvailability();
 actorInput.addEventListener("change", persistAccessSettings);
 organizationInput.addEventListener("change", persistAccessSettings);
 roleInput.addEventListener("change", persistAccessSettings);
@@ -185,6 +198,19 @@ sourceModeButtons.forEach((button) => {
 
 useExampleData?.addEventListener("click", loadExampleDataset);
 emptyUseExampleData?.addEventListener("click", loadExampleDataset);
+reopenAnalysisSettings?.addEventListener("click", () => {
+  [appShell, workspace, document.body].forEach((target) => target?.classList.add("is-editing-result"));
+  goalInput?.focus();
+  goalInput?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+fieldConfidenceSummary?.addEventListener("click", (event) => {
+  const trigger = event.target.closest("[data-open-setting]");
+  if (!trigger) return;
+  const disclosure = document.querySelector(`.${trigger.dataset.openSetting}-disclosure`);
+  disclosure?.setAttribute("open", "");
+  disclosure?.scrollIntoView({ behavior: "smooth", block: "center" });
+});
 
 exportPresetButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -209,6 +235,10 @@ askDetailShortcut?.addEventListener("click", () => {
 });
 cancelFromState?.addEventListener("click", () => cancelJob?.click());
 approvePlanAction?.addEventListener("click", () => {
+  if (!runtime.approvedPlan) {
+    setError("请先生成并查看服务端分析计划。");
+    return;
+  }
   runtime.planApproved = true;
   planApprovalStatus.textContent = "已批准";
   form.requestSubmit();
@@ -227,23 +257,72 @@ cancelPlanAction?.addEventListener("click", () => {
 jobSearchInput?.addEventListener("input", filterJobRows);
 jobStatusFilter?.addEventListener("change", filterJobRows);
 
-fileInput.addEventListener("change", () => {
+  fileInput.addEventListener("change", () => {
   const file = fileInput.files[0];
+  runtime.preflightRequestId += 1;
+  runtime.planInputVersion += 1;
   fileName.textContent = file?.name || "閫夋嫨鎴栨嫋鍏?CSV / Excel";
   setWorkspaceMode("has-dataset", Boolean(file));
   setWorkspaceMode("has-plan", false);
   setWorkspaceMode("has-result", false);
   setWorkspaceMode("is-failed", false);
+  runtime.preflight = null;
+  runtime.approvedPlan = null;
+  document.querySelectorAll(".settings-disclosure").forEach((disclosure) => disclosure.removeAttribute("open"));
+    setPreflightLoading(Boolean(file));
+    updatePlanActionAvailability();
   renderLocalPreview(file);
   updateFieldConfidenceSummary(file);
+  if (file) preflightDataset(file);
   runtime.planApproved = false;
   runtime.pendingPlanPayload = null;
   planApprovalBlock?.classList.add("hidden");
+  [appShell, workspace, document.body].forEach((target) => target?.classList.remove("is-editing-result"));
+});
+
+["dragenter", "dragover"].forEach((eventName) => {
+  centralUpload?.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    centralUpload.classList.add("is-dragging");
+  });
+});
+
+["dragleave", "drop"].forEach((eventName) => {
+  centralUpload?.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    centralUpload.classList.remove("is-dragging");
+  });
+});
+
+centralUpload?.addEventListener("drop", (event) => {
+  const [file] = event.dataTransfer?.files || [];
+  if (!file) return;
+  const transfer = new DataTransfer();
+  transfer.items.add(file);
+  fileInput.files = transfer.files;
+  fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+});
+
+goalInput.addEventListener("input", () => {
+  markPlanInputsChanged();
+  invalidateApprovedPlan();
 });
 
 applyFieldMapping.addEventListener("click", applyDetectedFieldMapping);
 clearFieldMapping.addEventListener("click", () => {
   dataDictionaryInput.value = "";
+  markPlanInputsChanged();
+  invalidateApprovedPlan();
+});
+dataDictionaryInput.addEventListener("input", () => {
+  markPlanInputsChanged();
+  invalidateApprovedPlan();
+});
+document.querySelectorAll("#analysisForm [name='business_scenario'], #analysisForm [name='report_audience'], #analysisForm [name='analysis_depth'], #analysisForm [name='delivery_format']").forEach((input) => {
+  input.addEventListener("change", () => {
+    markPlanInputsChanged();
+    invalidateApprovedPlan();
+  });
 });
 
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -269,7 +348,7 @@ form.addEventListener("submit", async (event) => {
   payload.delete("apiToken");
   if (!runtime.planApproved) {
     runtime.pendingPlanPayload = payload;
-    showPlanApproval(payload);
+    await showPlanApproval(payload);
     return;
   }
   runtime.pendingPlanPayload = payload;
@@ -286,6 +365,16 @@ async function submitAnalysisPayload(payload) {
   submitButton.disabled = true;
 
   try {
+    if (!runtime.preflight || !runtime.approvedPlan) {
+      throw new Error("请先完成数据预检并确认服务端生成的分析计划。");
+    }
+    if (!runtime.approvedPlan.execution_contract) {
+      throw new Error("计划确认凭据缺失，请重新生成计划后再执行。");
+    }
+    payload.set("preflight_id", runtime.preflight.id);
+    payload.set("plan_id", runtime.approvedPlan.id);
+    payload.set("preflight_fingerprint", runtime.preflight.fingerprint);
+    payload.set("preflight_contract", runtime.approvedPlan.execution_contract);
     const response = await apiFetch("/api/analyze", {
       method: "POST",
       body: payload,
@@ -422,6 +511,8 @@ async function loadMetrics() {
 }
 
 function activateTab(name) {
+  const activeTab = document.querySelector(`.tab[data-tab="${name}"]`);
+  activeTab?.closest("details")?.setAttribute("open", "");
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.toggle("active", tab.dataset.tab === name);
   });
@@ -448,10 +539,71 @@ async function loadExampleDataset() {
   }
 }
 
-function showPlanApproval(payload) {
+async function preflightDataset(file) {
+  const requestId = runtime.preflightRequestId;
+  previewMeta.textContent = "正在由服务端读取数据集...";
+  if (preflightState) preflightState.textContent = "正在检查文件结构、字段角色和数据质量。";
+  const payload = new FormData();
+  payload.set("dataset", file);
+  payload.set("workspace", workspaceInput.value.trim() || "default");
+  try {
+    const response = await apiFetch("/api/preflights", { method: "POST", body: payload });
+    const preflight = await readJson(response);
+    if (!response.ok) throw new Error(preflight.detail || preflight.error || "数据预检失败。");
+    if (requestId !== runtime.preflightRequestId) return;
+    runtime.preflight = preflight;
+    runtime.approvedPlan = null;
+    renderPreflight(preflight);
+    setError("");
+  } catch (error) {
+    if (requestId !== runtime.preflightRequestId) return;
+    runtime.preflight = null;
+    previewMeta.textContent = "服务端预检失败";
+    if (preflightState) preflightState.textContent = "预检未完成。请检查文件格式或修正后重新上传。";
+    setError(`无法完成服务端预检：${error.message}`);
+  } finally {
+    if (requestId === runtime.preflightRequestId) setPreflightLoading(false);
+  }
+}
+
+function renderPreflight(preflight) {
+  const headers = (preflight.columns || []).map((column) => column.name);
+  const rows = buildPreflightRows(preflight.columns || []);
+  runtime.currentPreview = { headers, rows };
+  previewMeta.textContent = `${preflight.profile?.rows || 0} 行，${headers.length} 个字段，质量评分 ${Math.round((preflight.profile?.quality_score || 0) * 100)}%`;
+  renderFieldMappingsSafe({ headers, rows }, preflight.columns || []);
+  renderPreviewTableSafe({ headers, rows });
+  const reviewCount = (preflight.columns || []).filter((column) => column.needs_review).length;
+  const gates = (preflight.quality_gates || []).filter((gate) => gate.status !== "pass");
+  const safetyFindings = preflight.security_findings || [];
+  if (preflightState) {
+    preflightState.textContent = reviewCount || gates.length || safetyFindings.length
+      ? `已识别 ${headers.length} 个字段；有 ${reviewCount + gates.length + safetyFindings.length} 项内容建议确认后再生成计划。`
+      : `已识别 ${headers.length} 个字段，数据可用于生成分析计划。`;
+  }
+  fieldConfidenceSummary.innerHTML = `
+    <strong>${reviewCount ? "建议确认字段含义" : "字段识别已完成"}</strong>
+    <p>${reviewCount ? `${reviewCount} 个字段的含义不够明确。` : "日期、金额、客户等常用字段已完成识别。"}${gates.length ? ` 另有 ${gates.length} 项数据质量提示。` : ""}${safetyFindings.length ? ` 已记录 ${safetyFindings.length} 项输入风险。` : ""}${reviewCount ? ' <button class="inline-guidance-action" type="button" data-open-setting="dictionary">补充字段字典</button>' : ""}</p>
+  `;
+}
+
+function buildPreflightRows(columns) {
+  const maxRows = Math.min(20, Math.max(...columns.map((column) => (column.samples || []).length), 0));
+  return Array.from({ length: maxRows }, (_, rowIndex) => columns.map((column) => (column.samples || [])[rowIndex] || ""));
+}
+
+async function showPlanApproval(payload) {
   const file = fileInput.files[0];
   if (!file) {
     setError("请先选择 CSV / Excel 文件。");
+    return;
+  }
+  if (!runtime.preflight) {
+    setError("数据预检尚未完成。请等待字段和质量检查完成后再生成计划。");
+    return;
+  }
+  if (runtime.preflightLoading) {
+    setError("数据预检仍在进行，请等待预检完成后再生成计划。");
     return;
   }
   setError("");
@@ -461,17 +613,50 @@ function showPlanApproval(payload) {
   setWorkspaceMode("is-running", false);
   emptyState.classList.add("hidden");
   planApprovalBlock?.classList.remove("hidden");
+  runtime.planLoading = true;
+  submitButton.disabled = true;
   if (planApprovalStatus) planApprovalStatus.textContent = "绛夊緟鎵瑰噯";
-  const goal = String(payload.get("goal") || goalInput.value || "").trim();
+  const goal = String(payload.get("goal") || goalInput.value || "").trim() || "通用数据分析";
   const dictionary = parseDictionaryValue(String(payload.get("data_dictionary") || ""));
-  const plannedSteps = buildPlannedSteps(goal, dictionary, file);
+  const planInputVersion = runtime.planInputVersion;
+  let planPayload;
+  try {
+    const response = await apiFetch(`/api/preflights/${encodeURIComponent(runtime.preflight.id)}/plans`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        goal,
+        data_dictionary: dictionary,
+        business_scenario: String(payload.get("business_scenario") || "sales"),
+        report_audience: String(payload.get("report_audience") || "manager"),
+        analysis_depth: String(payload.get("analysis_depth") || "quick"),
+        delivery_format: String(payload.get("delivery_format") || "business_report"),
+      }),
+    });
+    planPayload = await readJson(response);
+    if (!response.ok) throw new Error(planPayload.detail || planPayload.error || "生成分析计划失败。");
+    if (planInputVersion !== runtime.planInputVersion) {
+      throw new Error("分析输入已更新，请重新生成计划。");
+    }
+  } catch (error) {
+    setWorkspaceMode("has-plan", false);
+    planApprovalBlock?.classList.add("hidden");
+    setError(error.message);
+    runtime.planLoading = false;
+    submitButton.disabled = false;
+    return;
+  }
+  runtime.planLoading = false;
+  submitButton.disabled = false;
+  runtime.approvedPlan = planPayload;
+  const plannedSteps = buildApprovedPlanSteps(planPayload.plan, file, runtime.preflight);
   planApprovalSummary.replaceChildren(...plannedSteps.map(renderPlanCardNode));
   taskTitle.textContent = "等待计划确认";
   planList.replaceChildren(...plannedSteps.filter((item) => item.step).map(renderPlannedListItemNode));
   renderTransparencyState({
     reasoning: [
-      `已准备分析 ${file.name}，目标是：${goal || "通用数据分析"}。`,
-      "批准后会读取数据、生成画像、执行分析步骤，并标记低置信度内容。",
+      `已完成 ${runtime.preflight.profile?.rows || 0} 行数据预检，目标是：${goal}。`,
+      `以下 ${planPayload.plan?.steps?.length || 0} 个步骤来自服务端真实计划；批准后将按该计划执行。`,
     ],
     nextTitle: "等待你批准计划",
     nextDetail: "你可以先查看计划、编辑目标，或取消后重新选择数据。",
@@ -482,46 +667,19 @@ function showPlanApproval(payload) {
   activateTab("overview");
 }
 
-function buildPlannedSteps(goal, dictionary, file) {
-  const dictionaryCount = Object.keys(dictionary || {}).length;
-  return [
+function buildApprovedPlanSteps(plan, file, preflight) {
+  const steps = [
     {
-      kicker: "杈撳叆",
+      kicker: "输入",
       title: file.name,
-      detail: `${formatBytes(file.size)}，批准后上传到后端分析。`,
+      detail: `${formatBytes(file.size)}，指纹 ${String(preflight.fingerprint || "").slice(0, 12)}，已完成服务端预检。`,
       kind: "input",
     },
-    {
-      kicker: "璁″垝",
-      title: "数据画像与质量门禁",
-      detail: "检查字段类型、缺失、重复、异常值、常量字段和口径风险。",
-      tool: "profiler",
-      step: true,
-    },
-    {
-      kicker: "璁″垝",
-      title: "涓氬姟瀛楁璇嗗埆",
-      detail: dictionaryCount
-        ? `使用 ${dictionaryCount} 条字段字典，并结合列名与样本识别日期、收入、渠道等角色。`
-        : "根据列名和样本自动识别日期、收入、渠道、客户等角色。",
-      tool: "semantics",
-      step: true,
-    },
-    {
-      kicker: "璁″垝",
-      title: "洞察与图表生成",
-      detail: "按目标生成指标、分组、趋势、贡献和图表建议。",
-      tool: "sql/python",
-      step: true,
-    },
-    {
-      kicker: "浜や粯",
-      title: "鎶ュ憡涓庡鏍哥偣",
-      detail: "生成业务报告和导出文件，并标记低置信度结论和需要人工确认的项目。",
-      tool: "reporter",
-      step: true,
-    },
   ];
+  (plan?.steps || []).forEach((step) => {
+    steps.push({ kicker: "分析步骤", title: step.title, detail: step.objective, tool: step.tool, step: true });
+  });
+  return steps;
 }
 
 function renderJob(job) {
@@ -750,8 +908,12 @@ function renderResult(data) {
   const profile = data.profile;
   runtime.latestReport = data.report_markdown || "";
   document.querySelector(".agent-detail-disclosure")?.removeAttribute("open");
+  document.querySelector(".overview-evidence-disclosure")?.removeAttribute("open");
   emptyState.classList.add("hidden");
   taskTitle.textContent = data.source_filename || "分析完成";
+  if (resultDatasetName) resultDatasetName.textContent = data.source_filename || "已完成的分析";
+  if (resultGoalSummary) resultGoalSummary.textContent = goalInput.value.trim() || "未填写分析目标";
+  [appShell, workspace, document.body].forEach((target) => target?.classList.remove("is-editing-result"));
 
   metricGrid.replaceChildren(
     createMetricNode("行数", profile.rows),
@@ -771,6 +933,7 @@ function renderResult(data) {
 
   renderExecutiveSummary(data.executive_summary);
   renderQualityGates(data.quality_gates || []);
+  renderExecutionSafety(data);
 
   const insights = data.insights || [];
   insightBlock.classList.toggle("hidden", !insights.length);
@@ -907,7 +1070,7 @@ function renderLocalPreview(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const parsed = parseCsvPreview(String(reader.result || ""));
+      const parsed = parseCsvPreview(decodeCsvPreview(reader.result));
       if (!parsed.headers.length) {
         previewMeta.textContent = "未识别到字段";
         previewTable.innerHTML = `<p class="muted-copy">没有读取到可预览的 CSV 表头，请确认文件编码和分隔符。</p>`;
@@ -926,7 +1089,16 @@ function renderLocalPreview(file) {
     previewMeta.textContent = "读取失败";
     previewTable.innerHTML = `<p class="muted-copy">浏览器无法读取该文件，请重新选择后再试。</p>`;
   };
-  reader.readAsText(file.slice(0, 512 * 1024), "utf-8");
+  reader.readAsArrayBuffer(file.slice(0, 512 * 1024));
+}
+
+function decodeCsvPreview(buffer) {
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array();
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch (error) {
+    return new TextDecoder("gb18030").decode(bytes);
+  }
 }
 
 function parseCsvPreview(text) {
@@ -976,11 +1148,13 @@ function parseCsvPreview(text) {
   };
 }
 
-function renderFieldMappingsSafe(parsed) {
+function renderFieldMappingsSafe(parsed, preflightColumns = []) {
   clearElement(fieldMappingList);
+  const recommendations = new Map(preflightColumns.map((column) => [column.name, column]));
   parsed.headers.forEach((header, index) => {
     const samples = parsed.rows.map((row) => row[index]).filter(Boolean);
-    const detected = detectFieldRole(header, samples);
+    const recommendation = recommendations.get(header);
+    const detected = recommendation?.suggested_role || detectFieldRole(header, samples);
     const sampleText = samples.slice(0, 3).join(" / ") || "no sample";
     const row = document.createElement("label");
     row.className = "field-mapping-row";
@@ -992,6 +1166,7 @@ function renderFieldMappingsSafe(parsed) {
     const select = document.createElement("select");
     select.dataset.column = header;
     buildFieldRoleOptions(detected).forEach((option) => select.appendChild(option));
+    if (recommendation?.needs_review) title.title = recommendation.reason || "建议人工确认";
     text.append(title, sample);
     row.append(text, select);
     fieldMappingList.appendChild(row);
@@ -1154,6 +1329,38 @@ function applyDetectedFieldMapping() {
     }
   });
   dataDictionaryInput.value = JSON.stringify(mapping, null, 2);
+  markPlanInputsChanged();
+  invalidateApprovedPlan();
+}
+
+function markPlanInputsChanged() {
+  runtime.planInputVersion += 1;
+}
+
+function invalidateApprovedPlan() {
+  if (!runtime.approvedPlan && !runtime.planApproved) return;
+  runtime.approvedPlan = null;
+  runtime.planApproved = false;
+  runtime.pendingPlanPayload = null;
+  planApprovalBlock?.classList.add("hidden");
+  setStatus("idle", "需重新确认");
+}
+
+function setPreflightLoading(isLoading) {
+  runtime.preflightLoading = isLoading;
+  updatePlanActionAvailability();
+}
+
+function updatePlanActionAvailability() {
+  const hasDataset = Boolean(fileInput?.files?.length);
+  const isBusy = runtime.preflightLoading || runtime.planLoading || document.body.classList.contains("is-running");
+  submitButton.disabled = !hasDataset || isBusy;
+  if (!planActionHint) return;
+  planActionHint.textContent = hasDataset
+    ? isBusy
+      ? "正在检查数据文件，完成后可生成待批准的分析计划。"
+      : "先查看计划；批准前不会执行分析。"
+    : "先上传数据文件，再生成待批准的分析计划。";
 }
 
 function parseDictionaryValue(value) {
@@ -1339,6 +1546,7 @@ function renderInsightNode(insight) {
   detail.textContent = insight.detail || "";
   article.append(title, detail);
   appendEvidenceChips(article, insight.evidence || []);
+  appendTraceLinks(article, insight.source_step_ids || []);
   return article;
 }
 
@@ -1353,12 +1561,21 @@ function renderActionItemNode(item) {
   const detail = document.createElement("p");
   detail.textContent = item.detail || "";
   article.append(title, detail);
+  const assignment = document.createElement("div");
+  assignment.className = "action-assignment";
+  assignment.append(
+    createChip(`负责人：${item.owner_hint || "业务负责人"}`),
+    createChip(`时限：${item.deadline_hint || "本周内完成复核"}`),
+    createChip(`预期：${item.expected_impact || "减少决策不确定性"}`)
+  );
+  article.append(assignment);
   if (item.next_step) {
     const next = document.createElement("small");
     next.textContent = `下一步：${item.next_step}`;
     article.append(next);
   }
   appendEvidenceChips(article, (item.evidence || []).slice(0, 3));
+  appendTraceLinks(article, item.source_step_ids || []);
   return article;
 }
 
@@ -1387,13 +1604,28 @@ function appendEvidenceChips(parent, values) {
   parent.append(evidence);
 }
 
+function appendTraceLinks(parent, stepIds) {
+  if (!stepIds.length) return;
+  const links = document.createElement("div");
+  links.className = "insight-evidence";
+  stepIds.forEach((stepId) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip evidence-link";
+    button.textContent = `证据：${stepId}`;
+    button.addEventListener("click", () => activateTab("trace"));
+    links.append(button);
+  });
+  parent.append(links);
+}
+
 function renderTraceSpanNode(span) {
   const item = document.createElement("li");
   item.className = `timeline-row ${safeClassName(span.status || "")}`;
   const label = document.createElement("strong");
   label.textContent = span.label;
   const detail = document.createElement("p");
-  detail.textContent = `${span.step_id} 路 ${span.tool || "n/a"} 路 ${span.duration_ms || 0} ms`;
+  detail.textContent = `${span.step_id} 路 ${span.tool || "n/a"} 路 ${span.duration_ms || 0} ms${span.detail ? ` 路 ${span.detail}` : ""}`;
   const status = document.createElement("span");
   status.className = "tool-pill";
   status.textContent = span.status;
@@ -1529,6 +1761,38 @@ function renderQualityGates(gates) {
   qualityGateList.innerHTML = (gates || []).map(renderQualityGate).join("");
 }
 
+function renderExecutionSafety(data) {
+  const inputFindings = data.preflight_contract?.security_findings || [];
+  const toolSafety = (data.tool_results || []).map((result) => result.safety || {}).filter((item) => Object.keys(item).length);
+  const grouped = new Map();
+  toolSafety.forEach((item) => grouped.set(item.executor || "unknown", item));
+  const items = [
+    ...inputFindings.map((finding) => ({
+      title: finding.kind || "input_safety",
+      detail: finding.detail || "预检发现需要人工复核的数据风险。",
+      status: finding.severity === "high" ? "review" : "ok",
+    })),
+    ...[...grouped.values()].map((item) => ({
+      title: item.executor || "execution",
+      detail: [item.network && `网络：${item.network}`, item.filesystem && `文件：${item.filesystem}`, item.resources && `资源：${item.resources}`, item.query_policy && `查询：${item.query_policy}`].filter(Boolean).join("；"),
+      status: "ok",
+    })),
+  ];
+  executionSafetyBlock?.classList.toggle("hidden", !items.length);
+  if (executionSafetyCount) executionSafetyCount.textContent = String(items.length);
+  if (!executionSafetyList) return;
+  executionSafetyList.replaceChildren(...items.map((item) => {
+    const article = document.createElement("article");
+    article.className = `safety-evidence-item ${item.status}`;
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const detail = document.createElement("p");
+    detail.textContent = item.detail;
+    article.append(title, detail);
+    return article;
+  }));
+}
+
 function renderQualityGate(gate) {
   return `
     <article class="quality-gate ${escapeHtml(gate.status || "review")}">
@@ -1556,21 +1820,21 @@ function renderDecisionBrief(data) {
       title: topInsight?.title || data.executive_summary?.headline || "已生成分析结果",
       detail: topInsight?.detail || data.executive_summary?.current_state || "请查看关键结论、图表和报告正文。",
       action: "看关键结论",
-      target: "overview",
+      target: "insightBlock",
     },
     {
       kicker: "需要复核",
       title: reviewItems[0]?.title || `璐ㄩ噺璇勫垎 ${quality}%`,
       detail: reviewItems[0]?.detail || "当前没有明显阻塞点，导出前建议抽查关键指标口径。",
       action: reviewItems.length ? "处理复核点" : "查看口径",
-      target: "overview",
+      target: reviewItems.length ? "humanReviewBlock" : "metricDefinitionBlock",
     },
     {
       kicker: "下一步行动",
       title: topAction?.title || "导出报告或继续追问",
       detail: topAction?.detail || "可以切换老板版、客户版或诊断版报告，也可以围绕结果继续追问。",
       action: topAction ? "看行动项" : "去导出",
-      target: topAction ? "overview" : "report",
+      target: topAction ? "actionBlock" : "report",
     },
   ];
   decisionBriefGrid.innerHTML = cards
@@ -1586,7 +1850,16 @@ function renderDecisionBrief(data) {
     )
     .join("");
   decisionBriefGrid.querySelectorAll("[data-brief-target]").forEach((button) => {
-    button.addEventListener("click", () => activateTab(button.dataset.briefTarget || "overview"));
+    button.addEventListener("click", () => {
+      const target = button.dataset.briefTarget || "overview";
+      if (target === "report") {
+        activateTab(target);
+        return;
+      }
+      const section = document.getElementById(target);
+      section?.closest("details")?.setAttribute("open", "");
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   });
 }
 
@@ -1602,6 +1875,7 @@ function renderExportReadiness(data) {
   const reviewItems = buildHumanReviewItems(data);
   const reportReady = Boolean(data.report_markdown);
   const chartCount = (data.chart_specs || []).length;
+  const executionReview = data.execution_review || {};
   const exportLabel = reportReady ? (reviewItems.length ? "建议先复核" : "可以导出") : "报告未就绪";
   exportReadinessLabel.textContent = exportLabel;
   const items = [
@@ -2009,11 +2283,15 @@ function renderResultTransparency(data) {
   const reviewItems = buildHumanReviewItems(data);
   const planStepCount = data.plan?.steps?.length || 0;
   const chartCount = (data.chart_specs || []).length;
+  const executionReview = data.execution_review || {};
   renderTransparencyState({
     reasoning: [
       `已读取 ${profile.rows} 行、${profile.columns} 个字段，质量评分 ${quality}%。`,
       `识别到 ${semanticCountValue} 个业务字段角色，用于判断日期、金额、客户、渠道等口径。`,
       `生成 ${planStepCount} 个分析步骤和 ${chartCount} 个图表建议，并把结论绑定到证据与置信度。`,
+      executionReview.supplemental_steps?.length
+        ? `原计划输出不足，已追加 ${executionReview.supplemental_steps.length} 个受限验证步骤；请在复核项中确认。`
+        : "已完成批准计划的执行验证。",
     ],
     nextTitle: reviewItems.length ? "先处理需要复核的点" : "审阅结论并选择导出或追问",
     nextDetail: reviewItems.length
@@ -2069,21 +2347,69 @@ function renderHumanReview(data) {
   humanReviewList.innerHTML = visibleItems
     .slice(0, 6)
     .map(
-      (item) => `
+      (item) => {
+        const target = reviewTargetForItem(item);
+        return `
         <article class="review-item ${escapeHtml(item.status)}">
-          <strong>${escapeHtml(item.title)}</strong>
-          <p>${escapeHtml(item.detail)}</p>
-          <span>${escapeHtml(item.action)}</span>
+          <div>
+            <strong>${escapeHtml(item.title)}</strong>
+            <p>${escapeHtml(item.detail)}</p>
+          </div>
+          <button class="review-action" type="button" data-review-target="${target}">${escapeHtml(item.action)}</button>
         </article>
-      `
+      `;
+      }
     )
     .join("");
+  humanReviewList.querySelectorAll("[data-review-target]").forEach((button) => {
+    button.addEventListener("click", () => focusReviewTarget(button.dataset.reviewTarget || "overview"));
+  });
+}
+
+function reviewTargetForItem(item) {
+  const text = `${item.title || ""} ${item.action || ""}`;
+  if (text.includes("Trace")) return "trace";
+  if (text.includes("字段") || text.includes("字典")) return "edit";
+  if (text.includes("指标")) return "metricDefinitionBlock";
+  if (text.includes("质量") || text.includes("缺失") || text.includes("异常")) return "qualityGateBlock";
+  return "overview";
+}
+
+function focusReviewTarget(target) {
+  if (target === "trace") {
+    activateTab("trace");
+    return;
+  }
+  if (target === "edit") {
+    reopenAnalysisSettings?.click();
+    return;
+  }
+  const section = document.getElementById(target);
+  section?.closest("details")?.setAttribute("open", "");
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function buildHumanReviewItems(data) {
   if (!data?.profile) return [];
   const items = [];
   const profile = data.profile;
+  const executionReview = data.execution_review || {};
+  (executionReview.supplemental_steps || []).forEach((step) => {
+    items.push({
+      status: "needs-review",
+      title: `系统补充执行：${step.title || step.step_id}`,
+      detail: step.reason || "原计划没有返回可用结果，系统已执行固定的受限兜底步骤。",
+      action: "检查执行 Trace 和对应结果",
+    });
+  });
+  (executionReview.warnings || []).slice(0, 2).forEach((warning) => {
+    items.push({
+      status: "needs-review",
+      title: "执行结果存在限制",
+      detail: warning,
+      action: "确认后再采信结论",
+    });
+  });
   if (Number(profile.quality_score || 0) < 0.75) {
     items.push({
       status: "needs-review",

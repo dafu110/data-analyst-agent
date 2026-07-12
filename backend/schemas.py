@@ -131,5 +131,38 @@ if Field is not None:
     class FollowupRequest(BaseModel):
         question: str = Field(min_length=1, max_length=1000)
 
+
+    class PreflightPlanRequest(BaseModel):
+        goal: str = Field(min_length=1, max_length=2000)
+        data_dictionary: dict[str, str] = Field(default_factory=dict)
+        business_scenario: str = "sales"
+        report_audience: str = "manager"
+        analysis_depth: str = "quick"
+        delivery_format: str = "business_report"
+
+
+    class PreflightPlanResponse(BaseModel):
+        id: str
+        preflight_id: str
+        fingerprint: str
+        execution_contract: str
+        plan: dict[str, Any]
+
+
+    class PreflightResponse(BaseModel):
+        id: str
+        fingerprint: str
+        filename: str
+        size_bytes: int
+        expires_at: float
+        profile: dict[str, Any]
+        columns: list[dict[str, Any]]
+        semantic_roles: list[dict[str, Any]]
+        quality_gates: list[dict[str, Any]]
+        table_summaries: list[dict[str, Any]]
+        table_relationships: list[dict[str, Any]]
+        security_findings: list[dict[str, Any]]
+        review_required: bool
+
 else:
-    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AccountUsageResponse = AlertsResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = None
+    ErrorResponse = HealthResponse = JobResponse = JobListResponse = MetricsResponse = AccountUsageResponse = AlertsResponse = AuditLogResponse = CleanupResponse = FollowupResponse = FollowupRequest = PreflightPlanRequest = PreflightPlanResponse = PreflightResponse = None

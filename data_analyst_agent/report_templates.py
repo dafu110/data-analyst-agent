@@ -133,6 +133,8 @@ class ReportGenerator:
             lines.append("- missing_values 明细：所有字段缺失值为 0。")
         lines.append("")
 
+        lines.extend(render_safety_evidence(result.tool_results, result.input_security_findings))
+
         if profile.numeric_summary and not compact_delivery:
             lines.extend(["## 数值字段摘要", ""])
             for column, summary in profile.numeric_summary.items():
@@ -237,10 +239,12 @@ class ReportGenerator:
                         lines.append(f"  - 指标值：{insight.metric_value}")
                     if insight.evidence:
                         lines.append(f"  - 证据：{'，'.join(insight.evidence[:4])}")
+                    if insight.source_step_ids:
+                        lines.append(f"  - 计算步骤：{', '.join(insight.source_step_ids)}")
                     if insight.recommendation:
                         lines.append(f"  - 建议：{insight.recommendation}")
                     if insight.needs_review:
-                        lines.append("  - 人工复核：建议复核")
+                        lines.append("  - 局限与复核：该结论需要人工复核后再用于业务决策")
                 lines.append("")
 
         if result.action_items:
@@ -249,6 +253,7 @@ class ReportGenerator:
                 lines.append(f"- **[{item.priority}] {item.title}：** {item.detail}")
                 if item.next_step:
                     lines.append(f"  - 下一步：{item.next_step}")
+                lines.append(f"  - 建议负责人：{item.owner_hint}；完成时限：{item.deadline_hint}；预期影响：{item.expected_impact}")
                 if item.evidence:
                     lines.append(f"  - 证据：{'，'.join(item.evidence[:4])}")
             lines.append("")
@@ -303,6 +308,7 @@ class ReportGenerator:
             lines.extend(["", "### 修复动作", ""])
             for item in result.action_items:
                 lines.append(f"- [{item.priority}] {item.title}：{item.next_step or item.detail}")
+                lines.append(f"  - 负责人：{item.owner_hint}；时限：{item.deadline_hint}；预期：{item.expected_impact}")
         return lines
 
 
@@ -315,6 +321,37 @@ def render_tool_result(tool_result: ToolResult) -> list[str]:
         "```",
         "",
     ]
+
+
+def render_safety_evidence(tool_results: list[ToolResult], input_findings: list[dict[str, Any]] | None = None) -> list[str]:
+    entries: list[str] = []
+    seen: set[str] = set()
+    for tool_result in tool_results:
+        safety = tool_result.safety or {}
+        executor = str(safety.get("executor") or "unknown")
+        if executor in seen:
+            continue
+        seen.add(executor)
+        controls = [
+            f"执行器：{executor}",
+            f"网络：{safety.get('network', '未声明')}",
+            f"文件系统：{safety.get('filesystem', '未声明')}",
+        ]
+        if safety.get("resources"):
+            controls.append(f"资源：{safety['resources']}")
+        if safety.get("query_policy"):
+            controls.append(f"查询：{safety['query_policy']}")
+        entries.append("；".join(controls))
+    for finding in input_findings or []:
+        if not isinstance(finding, dict):
+            continue
+        entries.append(f"输入预检：{finding.get('kind', 'risk')}；{finding.get('detail', '需要人工复核')}")
+    if not entries:
+        return []
+    lines = ["## 安全执行证据", ""]
+    lines.extend(f"- {entry}" for entry in entries)
+    lines.append("")
+    return lines
 
 
 def to_jsonable(value: Any) -> Any:

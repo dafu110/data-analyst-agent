@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import threading
 import uuid
@@ -15,15 +16,25 @@ from backend.exporters import markdown_to_pdf, markdown_to_pptx
 from backend.job_store import job_to_dict
 from backend.observability import log_event
 from backend.rate_limiter import InMemoryRateLimiter
-from backend.schemas import AccountUsageResponse, AlertsResponse, AuditLogResponse, CleanupResponse, FollowupRequest, FollowupResponse, HealthResponse, JobListResponse, JobResponse, MetricsResponse
+from backend.schemas import AccountUsageResponse, AlertsResponse, AuditLogResponse, CleanupResponse, FollowupRequest, FollowupResponse, HealthResponse, JobListResponse, JobResponse, MetricsResponse, PreflightPlanRequest, PreflightPlanResponse, PreflightResponse
 from backend.security_headers import apply_security_headers
 from backend.server import markdown_to_html, result_to_csv_summary
 from backend.metrics_exporter import metrics_to_prometheus
 from backend.service import create_analysis_job, is_supported_dataset
+from backend.preflight import (
+    PreflightRegistry,
+    analysis_plan_from_dict,
+    create_execution_contract,
+    normalize_data_dictionary,
+    plan_to_dict,
+    preflight_to_dict,
+    verify_execution_contract,
+)
 from backend.store_factory import build_job_store
 from backend.usage import build_account_usage, build_usage_alerts, usage_summary_for_metrics
 from data_analyst_agent.followup import answer_followup
 from data_analyst_agent.options import parse_analysis_options
+from data_analyst_agent.serialization import to_jsonable
 
 try:
     from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
@@ -40,6 +51,7 @@ CONFIG = load_config()
 JOB_STORE = build_job_store(CONFIG)
 JOB_SEMAPHORE = threading.BoundedSemaphore(CONFIG.max_concurrent_jobs)
 RATE_LIMITER = InMemoryRateLimiter(CONFIG.rate_limit_per_minute, 60)
+PREFLIGHTS = PreflightRegistry(redis_url=CONFIG.redis_url)
 
 
 def create_app():
@@ -94,6 +106,71 @@ def create_app():
             raise HTTPException(status_code=404, detail="示例数据不可用。")
         return FileResponse(path, media_type="text/csv; charset=utf-8", filename="sales.csv")
 
+    @app.post("/api/preflights", status_code=HTTPStatus.CREATED, response_model=PreflightResponse, tags=["analysis"])
+    async def create_preflight(
+        principal: Annotated[Principal, Depends(current_principal)],
+        dataset: Annotated[UploadFile, File()],
+        workspace: Annotated[str | None, Form()] = None,
+        x_trace_id: Annotated[str | None, Header(alias="X-Trace-ID")] = None,
+    ) -> dict[str, object]:
+        require(principal, "job.create")
+        resolved_workspace = resolve_workspace(principal, workspace)
+        if not dataset.filename or not is_supported_dataset(dataset.filename):
+            raise HTTPException(status_code=400, detail="Please upload a .csv, .xlsx, or .xls file.")
+        content = await dataset.read()
+        if not content or len(content) > CONFIG.max_upload_bytes:
+            raise HTTPException(status_code=413, detail="Dataset file exceeds the configured size limit.")
+        try:
+            record = PREFLIGHTS.create(
+                filename=Path(dataset.filename).name,
+                content=content,
+                owner=principal.actor,
+                organization=principal.organization,
+                workspace=resolved_workspace,
+            )
+        except (ValueError, RuntimeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        audit(
+            JOB_STORE,
+            AuditContext(principal.actor, "fastapi", x_trace_id or uuid.uuid4().hex),
+            "dataset.preflight",
+            record.id,
+            {"filename": record.filename, "bytes": record.size_bytes, "fingerprint": record.fingerprint},
+        )
+        return preflight_to_dict(record)
+
+    @app.post("/api/preflights/{preflight_id}/plans", status_code=HTTPStatus.CREATED, response_model=PreflightPlanResponse, tags=["analysis"])
+    def create_preflight_plan(
+        preflight_id: str,
+        payload: PreflightPlanRequest,
+        principal: Annotated[Principal, Depends(current_principal)],
+        x_trace_id: Annotated[str | None, Header(alias="X-Trace-ID")] = None,
+    ) -> dict[str, object]:
+        require(principal, "job.create")
+        record = PREFLIGHTS.get(preflight_id, owner=principal.actor, organization=principal.organization, workspace=principal.workspace)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Preflight is unavailable, expired, or outside the current workspace.")
+        try:
+            dictionary = normalize_data_dictionary(payload.data_dictionary)
+            options = parse_analysis_options(payload.model_dump())
+            plan_id, plan = PREFLIGHTS.create_plan(record, goal=payload.goal.strip(), data_dictionary=dictionary)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        audit(
+            JOB_STORE,
+            AuditContext(principal.actor, "fastapi", x_trace_id or uuid.uuid4().hex),
+            "analysis.plan_created",
+            plan_id,
+            {"preflight_id": record.id, "fingerprint": record.fingerprint, "steps": len(plan.steps)},
+        )
+        return {
+            "id": plan_id,
+            "preflight_id": record.id,
+            "fingerprint": record.fingerprint,
+            "execution_contract": create_execution_contract(record, plan_id, plan, data_dictionary=dictionary, analysis_options=options, signing_secret=CONFIG.preflight_signing_secret),
+            "plan": plan_to_dict(plan),
+        }
+
     @app.post("/api/analyze", status_code=HTTPStatus.ACCEPTED, response_model=JobResponse, tags=["analysis"])
     async def analyze(
         principal: Annotated[Principal, Depends(current_principal)],
@@ -101,10 +178,14 @@ def create_app():
         goal: Annotated[str, Form()] = "生成数据画像并找出关键模式。",
         workspace: Annotated[str | None, Form()] = None,
         data_dictionary: Annotated[str, Form()] = "",
-        business_scenario: Annotated[str, Form()] = "general",
-        report_audience: Annotated[str, Form()] = "operator",
-        analysis_depth: Annotated[str, Form()] = "standard",
+        business_scenario: Annotated[str, Form()] = "sales",
+        report_audience: Annotated[str, Form()] = "manager",
+        analysis_depth: Annotated[str, Form()] = "quick",
         delivery_format: Annotated[str, Form()] = "business_report",
+        preflight_id: Annotated[str | None, Form()] = None,
+        plan_id: Annotated[str | None, Form()] = None,
+        preflight_fingerprint: Annotated[str | None, Form()] = None,
+        preflight_contract: Annotated[str | None, Form()] = None,
         x_trace_id: Annotated[str | None, Header(alias="X-Trace-ID")] = None,
     ) -> dict[str, object]:
         require(principal, "job.create")
@@ -118,7 +199,42 @@ def create_app():
         content = await dataset.read()
         if not content or len(content) > CONFIG.max_upload_bytes:
             raise HTTPException(status_code=413, detail="数据文件大小超出配置限制。")
-        dictionary = parse_data_dictionary(data_dictionary)
+        dictionary = normalize_data_dictionary(parse_data_dictionary(data_dictionary))
+        options = parse_analysis_options({"business_scenario": business_scenario, "report_audience": report_audience, "analysis_depth": analysis_depth, "delivery_format": delivery_format})
+        approved_plan = None
+        submitted_contract = preflight_contract
+        verified_contract = None
+        if any((preflight_id, plan_id, preflight_fingerprint, submitted_contract)):
+            if not all((preflight_id, plan_id, preflight_fingerprint, submitted_contract)):
+                raise HTTPException(status_code=400, detail="Preflight id, plan id, fingerprint, and signed approval contract must be submitted together.")
+            fingerprint = hashlib.sha256(content).hexdigest()
+            if submitted_contract:
+                try:
+                    contract_payload = verify_execution_contract(
+                        submitted_contract,
+                        signing_secret=CONFIG.preflight_signing_secret,
+                        owner=principal.actor,
+                        organization=principal.organization,
+                        workspace=resolved_workspace,
+                        fingerprint=fingerprint,
+                        goal=goal.strip(),
+                        data_dictionary=dictionary,
+                        analysis_options=options,
+                    )
+                    if contract_payload["preflight_id"] != preflight_id or contract_payload["plan_id"] != plan_id or contract_payload["fingerprint"] != preflight_fingerprint:
+                        raise ValueError("Preflight approval contract does not match the submitted identifiers.")
+                    approved_plan = analysis_plan_from_dict(contract_payload["plan"])
+                    dictionary = contract_payload["data_dictionary"]
+                    options = parse_analysis_options(contract_payload["analysis_options"])
+                    verified_contract = {
+                        "preflight_id": preflight_id,
+                        "plan_id": plan_id,
+                        "fingerprint": fingerprint,
+                        "verified": True,
+                        "security_findings": contract_payload.get("security_findings", []),
+                    }
+                except ValueError as exc:
+                    raise HTTPException(status_code=409, detail=str(exc)) from exc
         context = AuditContext(principal.actor, "fastapi", x_trace_id or uuid.uuid4().hex)
         payload = create_analysis_job(
             store=JOB_STORE,
@@ -131,15 +247,10 @@ def create_app():
             organization=principal.organization,
             workspace=resolved_workspace,
             data_dictionary=dictionary,
-            analysis_options=parse_analysis_options(
-                {
-                    "business_scenario": business_scenario,
-                    "report_audience": report_audience,
-                    "analysis_depth": analysis_depth,
-                    "delivery_format": delivery_format,
-                }
-            ),
+            analysis_options=options,
             context=context,
+            approved_plan=approved_plan,
+            preflight_contract=verified_contract,
             enqueue=bool(CONFIG.redis_url),
         )
         log_event("job.created", actor=principal.actor, organization=principal.organization, workspace=resolved_workspace, job_id=payload["id"])

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import time
 import unittest
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -38,6 +40,8 @@ class DataAnalystAgentTests(unittest.TestCase):
         self.assertGreater(result.profile.quality_score, 0)
         self.assertTrue(result.trace_spans)
         self.assertTrue(all(insight.evidence or insight.insight_type == "recommendation" for insight in result.insights))
+        self.assertTrue(all(insight.source_step_ids for insight in result.insights))
+        self.assertTrue(all(item.source_step_ids for item in result.action_items))
         self.assertTrue(all(0 <= insight.confidence <= 1 for insight in result.insights))
         self.assertIn("关键结论", result.report_markdown)
         self.assertIn("业务字段识别", result.report_markdown)
@@ -109,6 +113,22 @@ class DataAnalystAgentTests(unittest.TestCase):
         self.assertNotIn("执行 Trace", result.report_markdown)
         self.assertNotIn("分析发现原始结果", result.report_markdown)
 
+    def test_sales_analysis_returns_assignable_actions_without_claiming_automatic_execution(self) -> None:
+        result = DataAnalystAgent().analyze_csv(
+            ROOT / "examples" / "sales.csv",
+            "完成销售经营复盘，识别收入、订单和客单价变化，并给出本周优先动作。",
+            business_scenario="sales",
+        )
+
+        self.assertEqual(result.analysis_context.business_scenario, "sales")
+        self.assertTrue(result.action_items)
+        self.assertTrue(all(item.owner_hint for item in result.action_items))
+        self.assertTrue(all(item.expected_impact for item in result.action_items))
+        self.assertTrue(all(item.deadline_hint for item in result.action_items))
+        self.assertIn("建议负责人：", result.report_markdown)
+        self.assertIn("预期影响：", result.report_markdown)
+        self.assertNotIn("自动执行", result.report_markdown)
+
     def test_deep_report_includes_trace_and_raw_results(self) -> None:
         result = DataAnalystAgent().analyze_csv(
             ROOT / "examples" / "sales.csv",
@@ -135,6 +155,41 @@ class DataAnalystAgentTests(unittest.TestCase):
     def test_python_guardrails_block_imports(self) -> None:
         with self.assertRaises(GuardrailError):
             run_guarded_python(pd.DataFrame(), "import os\nresult = 1")
+
+    def test_tool_result_records_local_guardrail_evidence(self) -> None:
+        router = ToolRouter()
+        result = router.run_step(
+            pd.DataFrame({"revenue": [10, 20]}),
+            AnalysisStep(id="sum", title="Revenue sum", tool="python", objective="Sum revenue", code="result = int(df['revenue'].sum())"),
+        )
+
+        self.assertEqual(result.output, 30)
+        self.assertEqual(result.safety["executor"], "guarded_python")
+        self.assertTrue(result.safety["ast_validated"])
+
+        report = DataAnalystAgent().analyze_csv(ROOT / "examples" / "sales.csv", "分析销售趋势").report_markdown
+        self.assertIn("安全执行证据", report)
+        self.assertIn("计算步骤：", report)
+
+    def test_docker_execution_branch_records_isolation_evidence(self) -> None:
+        router = ToolRouter()
+        step = AnalysisStep(id="sum", title="Revenue sum", tool="python", objective="Sum revenue", code="result = 30")
+        with patch.dict(os.environ, {"DATA_ANALYST_AGENT_EXECUTOR_MODE": "docker"}):
+            with patch("data_analyst_agent.executor.run_python_in_docker", return_value=30):
+                result = router.run_step(pd.DataFrame({"revenue": [10, 20]}), step)
+
+        self.assertEqual(result.safety["executor"], "docker_sandbox")
+        self.assertEqual(result.safety["network"], "disabled")
+        self.assertIn("read-only", result.safety["filesystem"])
+
+    def test_report_includes_preflight_input_safety_findings(self) -> None:
+        result = DataAnalystAgent().analyze_csv(
+            ROOT / "examples" / "sales.csv",
+            "分析销售趋势",
+            input_security_findings=[{"kind": "spreadsheet_formula", "detail": "检测到公式前缀。"}],
+        )
+
+        self.assertIn("输入预检：spreadsheet_formula", result.report_markdown)
 
     def test_python_guardrails_block_dunder_subscript_escape(self) -> None:
         with self.assertRaises(GuardrailError):
@@ -167,6 +222,30 @@ class DataAnalystAgentTests(unittest.TestCase):
                 "分析销售数据",
                 is_cancelled=lambda: True,
             )
+
+    def test_agent_adds_fixed_fallback_when_approved_plan_has_no_output(self) -> None:
+        plan = AnalysisPlan(
+            user_goal="分析销售数据",
+            steps=[
+                AnalysisStep(
+                    id="empty-approved-step",
+                    title="Empty output",
+                    tool="python",
+                    objective="Exercise execution verification.",
+                    code="result = {}",
+                )
+            ],
+        )
+
+        result = DataAnalystAgent().analyze_csv(
+            ROOT / "examples" / "sales.csv",
+            "分析销售数据",
+            approved_plan=plan,
+        )
+
+        self.assertEqual(result.execution_review["status"], "supplemented")
+        self.assertEqual(result.execution_review["supplemental_steps"][0]["step_id"], "verification-fallback")
+        self.assertEqual(result.tool_results[-1].step_id, "verification-fallback")
 
     def test_tool_router_checks_cancellation_before_steps(self) -> None:
         router = ToolRouter(is_cancelled=lambda: True)

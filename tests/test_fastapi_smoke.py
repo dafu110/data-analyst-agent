@@ -85,6 +85,104 @@ class FastApiSmokeTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 413, response.text)
 
+    def test_fastapi_preflight_plan_and_execution_contract_when_available(self) -> None:
+        try:
+            from fastapi.testclient import TestClient
+            import backend.fastapi_app as fastapi_app
+        except Exception:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        if fastapi_app.FastAPI is None:
+            self.skipTest("FastAPI production dependencies are not installed.")
+
+        client = TestClient(fastapi_app.create_app())
+        headers = {"X-Actor": "preflight", "X-Org": "default", "X-Workspace": "default", "X-Role": "analyst"}
+        source = Path(__file__).resolve().parents[1] / "examples" / "sales.csv"
+        content = source.read_bytes()
+        preflight_response = client.post("/api/preflights", files={"dataset": ("sales.csv", content, "text/csv")}, headers=headers)
+        self.assertEqual(preflight_response.status_code, 201, preflight_response.text)
+        preflight = preflight_response.json()
+        self.assertEqual(preflight["profile"]["rows"], 10)
+
+        plan_response = client.post(
+            f"/api/preflights/{preflight['id']}/plans",
+            json={
+                "goal": "分析销售趋势",
+                "data_dictionary": {"revenue": "revenue"},
+                "business_scenario": "sales",
+                "report_audience": "manager",
+                "analysis_depth": "quick",
+                "delivery_format": "business_report",
+            },
+            headers=headers,
+        )
+        self.assertEqual(plan_response.status_code, 201, plan_response.text)
+        plan = plan_response.json()
+        self.assertTrue(plan["plan"]["steps"])
+        self.assertTrue(plan["execution_contract"])
+
+        mismatch = client.post(
+            "/api/analyze",
+            files={"dataset": ("sales.csv", b"region,revenue\nNorth,999\n", "text/csv")},
+            data={
+                "goal": "分析销售趋势",
+                "preflight_id": preflight["id"],
+                "plan_id": plan["id"],
+                "preflight_fingerprint": preflight["fingerprint"],
+                "preflight_contract": plan["execution_contract"],
+                "data_dictionary": '{"revenue":"revenue"}',
+            },
+            headers=headers,
+        )
+        self.assertEqual(mismatch.status_code, 409, mismatch.text)
+
+        accepted = client.post(
+            "/api/analyze",
+            files={"dataset": ("sales.csv", content, "text/csv")},
+            data={
+                "goal": plan["plan"]["user_goal"],
+                "preflight_id": preflight["id"],
+                "plan_id": plan["id"],
+                "preflight_fingerprint": preflight["fingerprint"],
+                "preflight_contract": plan["execution_contract"],
+                "data_dictionary": '{"revenue":"revenue"}',
+            },
+            headers=headers,
+        )
+        self.assertEqual(accepted.status_code, 202, accepted.text)
+
+        changed_options = client.post(
+            "/api/analyze",
+            files={"dataset": ("sales.csv", content, "text/csv")},
+            data={
+                "goal": plan["plan"]["user_goal"],
+                "preflight_id": preflight["id"],
+                "plan_id": plan["id"],
+                "preflight_fingerprint": preflight["fingerprint"],
+                "preflight_contract": plan["execution_contract"],
+                "data_dictionary": '{"revenue":"profit"}',
+                "analysis_depth": "deep",
+            },
+            headers=headers,
+        )
+        self.assertEqual(changed_options.status_code, 409, changed_options.text)
+
+        changed_depth = client.post(
+            "/api/analyze",
+            files={"dataset": ("sales.csv", content, "text/csv")},
+            data={
+                "goal": plan["plan"]["user_goal"],
+                "preflight_id": preflight["id"],
+                "plan_id": plan["id"],
+                "preflight_fingerprint": preflight["fingerprint"],
+                "preflight_contract": plan["execution_contract"],
+                "data_dictionary": '{"revenue":"revenue"}',
+                "analysis_depth": "deep",
+            },
+            headers=headers,
+        )
+        self.assertEqual(changed_depth.status_code, 409, changed_depth.text)
+
     def test_fastapi_rejects_unsupported_file_without_creating_job_when_available(self) -> None:
         try:
             from fastapi.testclient import TestClient

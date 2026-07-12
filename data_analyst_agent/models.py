@@ -43,6 +43,7 @@ class ToolResult:
     title: str
     output: Any
     warning: str | None = None
+    safety: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -68,6 +69,7 @@ class Insight:
     metric_value: str | None = None
     recommendation: str | None = None
     needs_review: bool = False
+    source_step_ids: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -141,6 +143,9 @@ class ActionItem:
     owner_hint: str = "业务负责人"
     evidence: list[str] = field(default_factory=list)
     next_step: str | None = None
+    source_step_ids: list[str] = field(default_factory=list)
+    expected_impact: str = "减少决策不确定性"
+    deadline_hint: str = "本周内完成复核"
 
 
 @dataclass(frozen=True)
@@ -198,3 +203,5 @@ class AgentResult:
     analysis_context: AnalysisContext = field(default_factory=AnalysisContext)
     executive_summary: ExecutiveSummary | None = None
     quality_gates: list[QualityGate] = field(default_factory=list)
+    execution_review: dict[str, Any] = field(default_factory=dict)
+    input_security_findings: list[dict[str, Any]] = field(default_factory=list)

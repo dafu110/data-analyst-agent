@@ -449,8 +449,8 @@ def record_from_mapping(row) -> JobRecord:
         filename=row["filename"],
         goal=row["goal"],
         status=row["status"],
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
+        created_at=timestamp_to_iso(row["created_at"]),
+        updated_at=timestamp_to_iso(row["updated_at"]),
         events=events,
         result=result,
         error=row["error"],
@@ -458,9 +458,13 @@ def record_from_mapping(row) -> JobRecord:
         owner=row["owner"],
         organization=row["organization"] if "organization" in row.keys() else "default",
         workspace=row["workspace"] if "workspace" in row.keys() else "default",
-        cancelled_at=row["cancelled_at"],
+        cancelled_at=timestamp_to_iso(row["cancelled_at"]),
         duration_ms=row["duration_ms"] if "duration_ms" in row.keys() else None,
     )
+
+
+def timestamp_to_iso(value: str | datetime | None) -> str | None:
+    return value.isoformat() if isinstance(value, datetime) else value
 
 
 def job_to_dict(record: JobRecord, *, include_result: bool = True) -> dict[str, Any]:

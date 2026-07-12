@@ -33,6 +33,7 @@ class AppConfig:
     allowed_database_hosts: set[str]
     rate_limit_per_minute: int
     max_active_jobs_per_actor: int
+    preflight_signing_secret: str = "data-analyst-agent-local-preflight-secret"
 
 
 def load_config() -> AppConfig:
@@ -62,6 +63,11 @@ def load_config() -> AppConfig:
         database_url=os.getenv("DATA_ANALYST_AGENT_DATABASE_URL") or os.getenv("DATABASE_URL") or None,
         redis_url=os.getenv("DATA_ANALYST_AGENT_REDIS_URL") or os.getenv("REDIS_URL") or None,
         queue_name=os.getenv("DATA_ANALYST_AGENT_QUEUE", "analysis"),
+        preflight_signing_secret=(
+            os.getenv("DATA_ANALYST_AGENT_PREFLIGHT_SIGNING_SECRET")
+            or os.getenv("DATA_ANALYST_AGENT_API_TOKEN")
+            or "data-analyst-agent-local-preflight-secret"
+        ),
         executor_mode=os.getenv("DATA_ANALYST_AGENT_EXECUTOR_MODE", "in_process"),
         allowed_database_hosts={
             host.strip()

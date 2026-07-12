@@ -25,6 +25,13 @@
             <small id="agentStateDetail">准备接收 CSV / Excel 数据集</small>
           </div>
 
+          <section class="result-sidebar-summary" aria-label="当前分析">
+            <span class="eyebrow">当前分析</span>
+            <strong id="resultDatasetName">尚未选择数据</strong>
+            <p id="resultGoalSummary">完成分析后将在这里保留数据集与目标摘要。</p>
+            <button id="reopenAnalysisSettings" class="secondary-action" type="button">修改分析条件</button>
+          </section>
+
           <form id="analysisForm" class="analysis-form">
             <section class="source-panel" aria-label="数据源">
               <div class="section-heading compact-heading">
@@ -55,6 +62,7 @@
                 <h3>数据预览与字段确认</h3>
                 <span id="previewMeta">未读取</span>
               </div>
+              <p id="preflightState" class="preflight-state" aria-live="polite"></p>
               <div id="fieldMappingList" class="field-mapping-list"></div>
               <div id="fieldConfidenceSummary" class="confidence-panel">
                 <strong>字段口径确认</strong>
@@ -75,7 +83,7 @@
                 <button class="template-chip" type="button" data-goal-template="按渠道、地区、产品分组分析贡献度，找出最值得投入的业务方向。">贡献分析</button>
               </div>
             </section>
-            <textarea id="goal" name="goal" rows="5">找出这个数据集里的关键模式、数据质量问题和下一步业务建议。</textarea>
+            <textarea id="goal" name="goal" rows="5" placeholder="例如：找出收入变化的主要原因，并给出下周优先验证的动作。"></textarea>
 
             <section class="preflight-panel" id="preflightPanel" aria-label="执行前确认">
               <div class="section-heading compact-heading">
@@ -88,11 +96,11 @@
               <label class="check-row"><input type="checkbox"> 先暂停，等我确认计划后再执行高影响分析</label>
             </section>
 
-            <button class="primary-action" type="submit">
+            <button class="primary-action" type="submit" aria-describedby="planActionHint">
               <span class="action-icon" aria-hidden="true"></span>
-              <strong>开始分析</strong>
+              <strong>生成分析计划</strong>
             </button>
-            <button id="useExampleData" class="secondary-action example-action" type="button">用示例销售数据体验</button>
+            <p id="planActionHint" class="plan-action-hint">先查看计划；批准前不会执行分析。</p>
 
             <details class="settings-disclosure business-disclosure">
               <summary>
@@ -102,8 +110,8 @@
               <div class="settings-body">
                 <label class="field-label" for="businessScenario">业务场景</label>
                 <select id="businessScenario" class="text-input" name="business_scenario">
+                  <option value="sales" selected>销售经营复盘</option>
                   <option value="general">通用经营分析</option>
-                  <option value="sales">销售经营分析</option>
                   <option value="ecommerce">电商经营分析</option>
                   <option value="content">内容运营分析</option>
                   <option value="finance">财务经营分析</option>
@@ -115,7 +123,7 @@
                     <span class="field-label">报告受众</span>
                     <select id="reportAudience" class="text-input" name="report_audience">
                       <option value="operator">运营执行者</option>
-                      <option value="manager">业务负责人</option>
+                      <option value="manager" selected>业务负责人</option>
                       <option value="executive">管理层</option>
                       <option value="client">客户汇报</option>
                     </select>
@@ -123,8 +131,8 @@
                   <label>
                     <span class="field-label">分析深度</span>
                     <select id="analysisDepth" class="text-input" name="analysis_depth">
-                      <option value="quick">快速诊断</option>
-                      <option value="standard" selected>标准分析</option>
+                      <option value="quick" selected>快速经营复盘</option>
+                      <option value="standard">标准分析</option>
                       <option value="deep">深度复盘</option>
                     </select>
                   </label>
@@ -152,7 +160,7 @@
               </div>
             </details>
 
-            <details class="settings-disclosure access-disclosure">
+            <details class="settings-disclosure access-disclosure management-disclosure">
               <summary>
                 <span>访问与权限</span>
                 <small>本地默认</small>
@@ -256,14 +264,21 @@
           <section id="emptyState" class="empty-state startup-panel">
             <div class="startup-heading">
               <div>
-                <span class="eyebrow">准备分析</span>
-                <h3>上传数据后，Agent 会先给出计划，再执行分析链路。</h3>
-              </div>
-              <div class="startup-actions">
-                <button id="emptyUseExampleData" class="secondary-action" type="button">用示例数据体验</button>
-                <span class="startup-badge">Ready</span>
+                <span class="eyebrow">开始新的分析</span>
+                <h3>将数据集放到这里</h3>
+                <p>支持 CSV、XLSX 与 XLS。上传后先检查数据质量和字段口径，再由你确认分析计划。</p>
               </div>
             </div>
+            <label class="central-upload" for="dataset">
+              <span class="central-upload-icon" aria-hidden="true"></span>
+              <strong>选择数据文件</strong>
+              <small>或将文件拖放到此处</small>
+              <span class="central-upload-meta">CSV, XLSX, XLS</span>
+            </label>
+            <div class="startup-actions">
+              <button id="emptyUseExampleData" class="secondary-action" type="button">用示例数据体验</button>
+            </div>
+            <p class="startup-footnote">数据仅用于当前分析任务。文件预检完成前，不会执行任何分析步骤。</p>
             <div class="startup-grid">
               <article class="startup-card">
                 <span class="startup-icon profile-icon" aria-hidden="true"></span>
@@ -306,17 +321,20 @@
 
           <nav class="tabs" aria-label="结果视图">
             <button class="tab active" type="button" data-tab="overview">总览</button>
-            <button class="tab" type="button" data-tab="timeline">时间线</button>
             <button class="tab" type="button" data-tab="charts">图表</button>
             <button class="tab" type="button" data-tab="report">报告</button>
-            <button class="tab" type="button" data-tab="followup">追问</button>
-            <button class="tab" type="button" data-tab="jobs">历史</button>
-            <button class="tab" type="button" data-tab="ops">运行指标</button>
-            <details class="advanced-tabs">
-              <summary>高级</summary>
+            <details class="advanced-tabs analysis-tabs" open>
+              <summary>分析细节</summary>
+              <button class="tab" type="button" data-tab="timeline">时间线</button>
               <button class="tab" type="button" data-tab="plan">分析计划</button>
               <button class="tab" type="button" data-tab="trace">Trace</button>
               <button class="tab" type="button" data-tab="results">工具结果</button>
+              <button class="tab" type="button" data-tab="followup">追问</button>
+            </details>
+            <details class="advanced-tabs management-tabs" open>
+              <summary>管理</summary>
+              <button class="tab" type="button" data-tab="jobs">历史</button>
+              <button class="tab" type="button" data-tab="ops">运行指标</button>
             </details>
           </nav>
 
@@ -335,6 +353,20 @@
               <div class="section-heading"><h3>先看这三件事</h3><span id="decisionBriefStatus">待生成</span></div>
               <div id="decisionBriefGrid" class="decision-brief-grid"></div>
             </section>
+            <section class="section-block review-block hidden" id="humanReviewBlock">
+              <div class="section-heading"><h3>需要你介入的点</h3><span id="humanReviewStatus">待分析</span></div>
+              <div id="humanReviewList" class="review-list"></div>
+            </section>
+            <section class="section-block insight-block hidden" id="insightBlock">
+              <div class="section-heading"><h3>关键结论</h3><span id="insightCount">0</span></div>
+              <div id="insightList" class="insight-list"></div>
+            </section>
+            <section class="section-block hidden" id="actionBlock">
+              <div class="section-heading"><h3>下一步行动</h3><span id="actionCount">0</span></div>
+              <div id="actionList" class="action-list"></div>
+            </section>
+            <details class="overview-evidence-disclosure">
+              <summary>证据与分析细节</summary>
             <section class="section-block trust-block" id="trustEvidenceBlock">
               <div class="section-heading"><h3>可信度与人工复核</h3><span id="trustScoreLabel">待生成</span></div>
               <div class="trust-grid">
@@ -351,10 +383,6 @@
               <div class="section-heading"><h3>Agent 活动</h3><span id="agentActivityCount">0</span></div>
               <ol id="agentActivityList" class="activity-list"></ol>
             </section>
-            <section class="section-block review-block hidden" id="humanReviewBlock">
-              <div class="section-heading"><h3>需要你介入的点</h3><span id="humanReviewStatus">待分析</span></div>
-              <div id="humanReviewList" class="review-list"></div>
-            </section>
             <section class="section-block hidden" id="executiveSummaryBlock">
               <div class="section-heading"><h3>管理层摘要</h3><span id="executiveConfidence">0%</span></div>
               <div id="executiveSummaryContent" class="executive-summary"></div>
@@ -363,9 +391,9 @@
               <div class="section-heading"><h3>分析质量门禁</h3><span id="qualityGateCount">0</span></div>
               <div id="qualityGateList" class="quality-gate-list"></div>
             </section>
-            <section class="section-block insight-block hidden" id="insightBlock">
-              <div class="section-heading"><h3>关键结论</h3><span id="insightCount">0</span></div>
-              <div id="insightList" class="insight-list"></div>
+            <section class="section-block hidden" id="executionSafetyBlock">
+              <div class="section-heading"><h3>安全执行证据</h3><span id="executionSafetyCount">0</span></div>
+              <div id="executionSafetyList" class="safety-evidence-list"></div>
             </section>
             <section class="section-block semantic-block hidden" id="semanticBlock">
               <div class="section-heading"><h3>业务字段识别</h3><span id="semanticCount">0</span></div>
@@ -374,10 +402,6 @@
             <section class="section-block hidden" id="questionBlock">
               <div class="section-heading"><h3>推荐追问</h3><span id="questionCount">0</span></div>
               <div id="questionList" class="suggestion-row"></div>
-            </section>
-            <section class="section-block hidden" id="actionBlock">
-              <div class="section-heading"><h3>下一步行动</h3><span id="actionCount">0</span></div>
-              <div id="actionList" class="action-list"></div>
             </section>
             <section class="section-block hidden" id="metricDefinitionBlock">
               <div class="section-heading"><h3>指标口径</h3><span id="metricDefinitionCount">0</span></div>
@@ -393,6 +417,7 @@
                 <div id="columnList" class="chip-list"></div>
               </section>
             </div>
+            </details>
           </section>
 
           <section id="timeline" class="tab-panel"><ol id="jobTimeline" class="timeline"></ol></section>

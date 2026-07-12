@@ -34,6 +34,8 @@ Admin-only or sensitive endpoints require the configured admin actor and role pe
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Runtime health. | Reports store, queue, database, and capacity state. |
 | `POST` | `/api/analyze` | Upload CSV/Excel and create an analysis job. | Multipart `dataset`, optional `goal`, `options`, `data_dictionary`, `workspace`. |
+| `POST` | `/api/preflights` | Inspect an uploaded dataset before execution. | Returns profile, semantic roles, quality gates, fingerprint, and expiry. |
+| `POST` | `/api/preflights/{preflight_id}/plans` | Generate a reviewable plan. | Returns a signed execution contract bound to scope, goal, plan, fingerprint, and expiry. |
 | `GET` | `/api/jobs` | List visible jobs. | Scoped by actor, org, workspace, and role. |
 | `GET` | `/api/jobs/{job_id}` | Fetch one job. | Owner/admin scoped. |
 | `DELETE` | `/api/jobs/{job_id}` | Cancel a running job. | Requires job access. |
@@ -65,6 +67,8 @@ Optional fields:
 | `options` | JSON string | Analysis depth, delivery mode, scenario, and BI settings. |
 | `data_dictionary` | JSON string | Column labels and business meanings. |
 | `workspace` | string | Workspace override within the actor scope. |
+| `preflight_id`, `plan_id`, `preflight_fingerprint` | string | Optional reviewed-plan identifiers; submit together. |
+| `preflight_contract` | string | Signed contract returned by the preflight-plan endpoint. Required for portable approval across web and worker processes. |
 
 Response:
 
@@ -112,4 +116,5 @@ Report file paths are constrained to the configured report directory before expo
 - Set `DATA_ANALYST_AGENT_ENV=prod` before claiming production readiness.
 - Use `DATA_ANALYST_AGENT_EXECUTOR_MODE=docker` for Python analysis execution in production.
 - Configure PostgreSQL and Redis/RQ for multi-user deployments.
+- Set `DATA_ANALYST_AGENT_PREFLIGHT_SIGNING_SECRET` to a long random secret; never rotate it while approvals are still within their 15-minute review window.
 - Run `python -m backend.production_check --require-external` after Docker, PostgreSQL, Redis, and the sandbox image are available.

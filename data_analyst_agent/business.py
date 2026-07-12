@@ -162,6 +162,8 @@ def build_action_items(profile: DatasetProfile, insights: list[Insight], semanti
                 owner_hint="数据负责人",
                 evidence=[f"quality_score={profile.quality_score:.0%}", *profile.warnings[:3]],
                 next_step="打开数据质量部分，逐字段确认缺失和异常原因。",
+                expected_impact="避免基于不完整数据调整销售策略",
+                deadline_hint="本周首个工作日完成",
             )
         )
     else:
@@ -173,6 +175,8 @@ def build_action_items(profile: DatasetProfile, insights: list[Insight], semanti
                 owner_hint="数据负责人",
                 evidence=[f"quality_score={profile.quality_score:.0%}"],
                 next_step="将质量检查保存为每次上传后的固定校验。",
+                expected_impact="保持销售复盘结论可复用、可比较",
+                deadline_hint="下次数据更新前完成",
             )
         )
 
@@ -186,6 +190,8 @@ def build_action_items(profile: DatasetProfile, insights: list[Insight], semanti
                 owner_hint="业务负责人",
                 evidence=insight.evidence[:4],
                 next_step=insight.recommendation or "围绕该结论继续做分组对比或异常点复核。",
+                expected_impact="验证增长机会或经营风险，再决定是否调整资源投入",
+                deadline_hint="本周内完成验证",
             )
         )
 

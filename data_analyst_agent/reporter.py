@@ -62,6 +62,16 @@ class ReportGenerator:
                 lines.append(f"- **{gate.name}**：{gate.status} / {gate.severity}。{gate.detail}")
             lines.append("")
 
+        if result.execution_review:
+            review = result.execution_review
+            lines.extend(["## Execution Review", ""])
+            lines.append(f"- Status: {review.get('status', 'unknown')}")
+            for warning in review.get("warnings", [])[:3]:
+                lines.append(f"- Review: {warning}")
+            for step in review.get("supplemental_steps", [])[:3]:
+                lines.append(f"- Supplemental step: {step.get('title', step.get('step_id', 'unknown'))}")
+            lines.append("")
+
         if result.analysis_context:
             context = result.analysis_context
             lines.extend(
@@ -133,10 +143,12 @@ class ReportGenerator:
                         lines.append(f"  - 指标值：{insight.metric_value}")
                     if insight.evidence:
                         lines.append(f"  - 证据：{'；'.join(insight.evidence[:4])}")
+                    if insight.source_step_ids:
+                        lines.append(f"  - 计算步骤：{', '.join(insight.source_step_ids)}")
                     if insight.recommendation:
                         lines.append(f"  - 建议：{insight.recommendation}")
                     if insight.needs_review:
-                        lines.append("  - 人工复核：建议复核")
+                        lines.append("  - 局限与复核：该结论需要人工复核后再用于业务决策")
                 lines.append("")
 
         if result.suggested_questions:
@@ -151,6 +163,7 @@ class ReportGenerator:
                 lines.append(f"- **[{item.priority}] {item.title}：** {item.detail}")
                 if item.next_step:
                     lines.append(f"  - 下一步：{item.next_step}")
+                lines.append(f"  - 建议负责人：{item.owner_hint}；完成时限：{item.deadline_hint}；预期影响：{item.expected_impact}")
                 if item.evidence:
                     lines.append(f"  - 证据：{'；'.join(item.evidence[:4])}")
             lines.append("")

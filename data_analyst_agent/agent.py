@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from datetime import datetime, timezone
 from collections.abc import Callable
@@ -12,6 +13,7 @@ from data_analyst_agent.analysis_profile import build_time_series_summaries, inf
 from data_analyst_agent.models import AgentResult, TraceSpan
 from data_analyst_agent.options import AnalysisOptions
 from data_analyst_agent.planner import Planner
+from data_analyst_agent.plan_validator import validate_plan
 from data_analyst_agent.llm_provider import build_planner_client_from_env
 from data_analyst_agent.datasets import load_dataset_bundle
 from data_analyst_agent.profiler import profile_dataframe
@@ -28,6 +30,7 @@ from data_analyst_agent.business import (
     build_quality_gates,
     build_suggested_questions,
 )
+from data_analyst_agent.verification import verify_execution
 
 
 class DataAnalystAgent:
@@ -49,11 +52,13 @@ class DataAnalystAgent:
         goal: str,
         source_name: str | Path | None = None,
         data_dictionary: dict[str, str] | None = None,
+        input_security_findings: list[dict[str, Any]] | None = None,
         business_scenario: str | None = None,
         report_audience: str | None = None,
         analysis_depth: str | None = None,
         delivery_format: str | None = None,
         analysis_options: AnalysisOptions | dict[str, str] | None = None,
+        approved_plan=None,
         is_cancelled: Callable[[], bool] | None = None,
         tool_timeout_seconds: int = 30,
     ) -> AgentResult:
@@ -88,7 +93,13 @@ class DataAnalystAgent:
         trace_spans.append(build_span("business-context", "识别业务语义和分析意图", "completed", started, "rules"))
         check_cancelled(is_cancelled)
         started = time.monotonic()
-        plan = self.planner.create_plan(goal, profile, semantic_roles=semantic_roles)
+        if approved_plan is not None:
+            if approved_plan.user_goal.strip() != goal.strip():
+                raise ValueError("Approved plan goal does not match the analysis request.")
+            validate_plan(approved_plan, profile, self.policy)
+            plan = approved_plan
+        else:
+            plan = self.planner.create_plan(goal, profile, semantic_roles=semantic_roles)
         trace_spans.append(build_span("plan", "生成分析计划", "completed", started, "planner"))
         check_cancelled(is_cancelled)
         started = time.monotonic()
@@ -97,6 +108,25 @@ class DataAnalystAgent:
             router = ToolRouter(self.policy, timeout_seconds=tool_timeout_seconds, is_cancelled=is_cancelled)
         tool_results = router.run_plan(df, plan)
         trace_spans.append(build_span("tools", "执行分析工具", "completed", started, "router"))
+        check_cancelled(is_cancelled)
+        started = time.monotonic()
+        tool_results, execution_review = verify_execution(
+            tool_results,
+            profile=profile,
+            semantic_roles=semantic_roles,
+            router=router,
+            df=df,
+        )
+        trace_spans.append(
+            build_span(
+                "execution-review",
+                "验证执行结果",
+                execution_review["status"],
+                started,
+                "verifier",
+                "; ".join(execution_review["warnings"][:2]) or None,
+            )
+        )
         check_cancelled(is_cancelled)
         started = time.monotonic()
         report_inputs = build_report_inputs(profile, tool_results, semantic_roles, analysis_intent, time_series, analysis_context)
@@ -128,6 +158,8 @@ class DataAnalystAgent:
             analysis_context=analysis_context,
             executive_summary=executive_summary,
             quality_gates=quality_gates,
+            execution_review=execution_review,
+            input_security_findings=input_security_findings or [],
         )
         report_markdown = self.reporter.generate(partial_result)
         check_cancelled(is_cancelled)
@@ -150,6 +182,8 @@ class DataAnalystAgent:
             analysis_context=analysis_context,
             executive_summary=executive_summary,
             quality_gates=quality_gates,
+            execution_review=execution_review,
+            input_security_findings=input_security_findings or [],
         )
 
     def _resolve_options(
@@ -177,7 +211,7 @@ class DataAnalystAgent:
         return AgentResult(**values)
 
 
-def build_span(step_id: str, label: str, status: str, started: float, tool: str | None = None) -> TraceSpan:
+def build_span(step_id: str, label: str, status: str, started: float, tool: str | None = None, detail: str | None = None) -> TraceSpan:
     duration_ms = round((time.monotonic() - started) * 1000, 2)
     now = datetime.now(timezone.utc).isoformat()
     return TraceSpan(
@@ -188,14 +222,15 @@ def build_span(step_id: str, label: str, status: str, started: float, tool: str 
         ended_at=now,
         duration_ms=duration_ms,
         tool=tool,
+        detail=detail,
     )
 
 
 def build_report_inputs(profile, tool_results, semantic_roles, analysis_intent, time_series, analysis_context) -> dict[str, Any]:
     chart_specs = build_chart_specs(profile, tool_results)
-    insights = build_insights(profile, tool_results, semantic_roles, analysis_intent, time_series)
+    insights = link_evidence_to_insights(build_insights(profile, tool_results, semantic_roles, analysis_intent, time_series))
     suggested_questions = build_suggested_questions(profile, insights, semantic_roles, time_series)
-    action_items = build_action_items(profile, insights, semantic_roles)
+    action_items = link_evidence_to_actions(build_action_items(profile, insights, semantic_roles))
     metric_definitions = build_metric_definitions(profile, semantic_roles)
     quality_gates = build_quality_gates(profile, semantic_roles, analysis_context)
     executive_summary = build_executive_summary(profile, insights, action_items, quality_gates, analysis_context)
@@ -208,6 +243,35 @@ def build_report_inputs(profile, tool_results, semantic_roles, analysis_intent, 
         "quality_gates": quality_gates,
         "executive_summary": executive_summary,
     }
+
+
+def link_evidence_to_insights(insights):
+    return [replace(insight, source_step_ids=infer_source_steps(insight.evidence)) for insight in insights]
+
+
+def link_evidence_to_actions(actions):
+    return [replace(action, source_step_ids=infer_source_steps(action.evidence)) for action in actions]
+
+
+def infer_source_steps(evidence: list[str]) -> list[str]:
+    text = " ".join(str(item) for item in evidence)
+    source_steps = ["profile"]
+    evidence_sources = {
+        "top_region=": "revenue-by-region",
+        "top_product=": "revenue-by-product",
+        "top_units_product=": "units-by-product",
+        "std_to_mean=": "numeric-summary",
+        "correlation=": "correlations",
+        "outliers=": "numeric-anomalies",
+        "date_column=": "time-trend",
+        "discount_field=": "business-context",
+        "revenue/profit/units": "business-context",
+        "date ": "business-context",
+    }
+    for marker, step_id in evidence_sources.items():
+        if marker in text and step_id not in source_steps:
+            source_steps.append(step_id)
+    return source_steps
 
 
 def check_cancelled(is_cancelled: Callable[[], bool] | None) -> None:

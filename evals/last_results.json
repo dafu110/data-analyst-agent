@@ -39,13 +39,13 @@
       "expected_behavior": "生成完整的数据画像、分析计划、工具结果、图表和报告。",
       "passed": true,
       "failures": [],
-      "latency_ms": 35.97,
+      "latency_ms": 25.0,
       "steps": 10,
       "charts": 5,
       "insights": 13,
       "semantic_roles": 5,
       "quality_score": 1.0,
-      "trace_spans": 7
+      "trace_spans": 8
     },
     {
       "id": "sales_quality_focus",
@@ -53,13 +53,13 @@
       "expected_behavior": "执行数据质量扫描，并展示缺失值相关发现。",
       "passed": true,
       "failures": [],
-      "latency_ms": 25.23,
+      "latency_ms": 17.44,
       "steps": 10,
       "charts": 5,
       "insights": 13,
       "semantic_roles": 5,
       "quality_score": 1.0,
-      "trace_spans": 7
+      "trace_spans": 8
     },
     {
       "id": "monthly_sales_trend",
@@ -67,13 +67,13 @@
       "expected_behavior": "识别日期字段，生成时间趋势和分群贡献分析。",
       "passed": true,
       "failures": [],
-      "latency_ms": 37.76,
+      "latency_ms": 25.9,
       "steps": 11,
       "charts": 6,
       "insights": 16,
       "semantic_roles": 7,
       "quality_score": 1.0,
-      "trace_spans": 7
+      "trace_spans": 8
     },
     {
       "id": "customer_ops_quality",
@@ -81,13 +81,13 @@
       "expected_behavior": "发现缺失值和重复行，并识别运营分析意图。",
       "passed": true,
       "failures": [],
-      "latency_ms": 32.28,
+      "latency_ms": 21.59,
       "steps": 7,
       "charts": 6,
       "insights": 11,
       "semantic_roles": 5,
       "quality_score": 0.9617,
-      "trace_spans": 7
+      "trace_spans": 8
     },
     {
       "id": "marketing_funnel_efficiency",
@@ -95,13 +95,13 @@
       "expected_behavior": "识别日期、渠道、收入、成本、订单和客户字段，发现重复行、缺失成本和渠道贡献差异。",
       "passed": true,
       "failures": [],
-      "latency_ms": 48.79,
+      "latency_ms": 35.34,
       "steps": 8,
       "charts": 6,
       "insights": 13,
       "semantic_roles": 7,
       "quality_score": 0.9821,
-      "trace_spans": 7
+      "trace_spans": 8
     },
     {
       "id": "subscription_retention_risk",
@@ -109,13 +109,13 @@
       "expected_behavior": "围绕月度趋势、计划分层、流失和收入指标生成洞察，并标记满意度缺失值。",
       "passed": true,
       "failures": [],
-      "latency_ms": 53.2,
+      "latency_ms": 33.79,
       "steps": 8,
       "charts": 6,
       "insights": 13,
       "semantic_roles": 5,
       "quality_score": 0.998,
-      "trace_spans": 7
+      "trace_spans": 8
     }
   ]
 }

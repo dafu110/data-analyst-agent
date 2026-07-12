@@ -7,7 +7,7 @@ WORKDIR /app
 ARG INSTALL_EXTRAS=""
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends docker.io fonts-wqy-microhei fonts-noto-cjk fontconfig \
+    && apt-get install -y --no-install-recommends docker.io docker-cli fonts-wqy-microhei fonts-noto-cjk fontconfig \
     && fc-cache -f \
     && rm -rf /var/lib/apt/lists/*
 

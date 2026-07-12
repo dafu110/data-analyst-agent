@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
@@ -10,17 +11,58 @@ import re
 import pandas as pd
 
 from backend.config import AppConfig, validate_runtime_config
+from backend.job_store import record_from_mapping
 from backend.production_check import check_docker, run_docker_sandbox_smoke
+from data_analyst_agent.sandbox import run_python_in_docker
 from data_analyst_agent.database_connector import validate_database_url, validate_readonly_query
 from data_analyst_agent.datasets import load_dataset_bundle
 from data_analyst_agent.agent import DataAnalystAgent
 from data_analyst_agent.relationships import infer_table_relationships
+from data_analyst_agent.models import AnalysisPlan, AnalysisStep
+from backend.worker import deserialize_approved_plan, serialize_approved_plan
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProductionAdapterTests(unittest.TestCase):
+    def test_postgres_timestamp_fields_are_normalized_for_api_responses(self) -> None:
+        timestamp = datetime(2026, 7, 12, 2, 51, 5, tzinfo=timezone.utc)
+        record = record_from_mapping(
+            {
+                "id": "job-1",
+                "filename": "sales.csv",
+                "goal": "Analyze sales",
+                "status": "completed",
+                "created_at": timestamp,
+                "updated_at": timestamp,
+                "events_json": [],
+                "result_json": {"report_markdown": "ok"},
+                "error": None,
+                "report_path": None,
+                "owner": "analyst",
+                "organization": "default",
+                "workspace": "default",
+                "cancelled_at": None,
+                "duration_ms": 42.0,
+            }
+        )
+
+        self.assertEqual(record.created_at, timestamp.isoformat())
+        self.assertEqual(record.updated_at, timestamp.isoformat())
+
+    def test_queued_approved_plan_uses_json_compatible_payload(self) -> None:
+        plan = AnalysisPlan(
+            user_goal="sales trend",
+            steps=[AnalysisStep(id="summary", title="Summary", tool="python", objective="Summarize", code="result = {}")],
+        )
+
+        payload = serialize_approved_plan(plan)
+        restored = deserialize_approved_plan(payload)
+
+        self.assertIsInstance(payload, dict)
+        self.assertEqual(restored, plan)
+
     def test_production_runtime_config_requires_secure_defaults(self) -> None:
         config = AppConfig(
             env="prod",
@@ -94,6 +136,10 @@ class ProductionAdapterTests(unittest.TestCase):
         self.assertIn("DATA_ANALYST_AGENT_EXECUTOR_MODE: docker", compose)
         self.assertNotIn("/var/run/docker.sock:/var/run/docker.sock", api_service)
         self.assertIn("/var/run/docker.sock:/var/run/docker.sock", worker_service)
+        self.assertIn("./uploads:/app/backend/uploads", api_service)
+        self.assertIn("./uploads:/app/backend/uploads", worker_service)
+        self.assertIn("sandbox-work:/sandbox-work", worker_service)
+        self.assertIn("DATA_ANALYST_AGENT_SANDBOX_VOLUME", worker_service)
         self.assertIn("DATA_ANALYST_AGENT_ADMIN_ACTORS", compose)
         self.assertIn("condition: service_completed_successfully", compose)
         self.assertIn("DATA_ANALYST_AGENT_EXECUTOR_MODE=docker", env_example)
@@ -127,6 +173,29 @@ class ProductionAdapterTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertIn("permission denied", result.detail)
+
+    def test_docker_sandbox_uses_named_volume_for_containerized_workers(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            def write_sandbox_output(command, **_kwargs):
+                workdir = next(Path(root).iterdir())
+                (workdir / "output.json").write_text("30", encoding="utf-8")
+                self.assertIn("data-analyst-agent-sandbox-work:/work:rw", command)
+                self.assertIn(f"/work/{workdir.name}/input.json", command)
+                return Mock(returncode=0)
+
+            with patch.dict(
+                "os.environ",
+                {
+                    "DATA_ANALYST_AGENT_SANDBOX_VOLUME": "data-analyst-agent-sandbox-work",
+                    "DATA_ANALYST_AGENT_SANDBOX_WORKDIR": root,
+                },
+                clear=False,
+            ):
+                with patch("data_analyst_agent.sandbox.subprocess.run", side_effect=write_sandbox_output):
+                    output = run_python_in_docker(pd.DataFrame({"revenue": [10, 20]}), "result = 30")
+
+        self.assertEqual(output, 30)
+        self.assertIn("workdir.chmod(0o733)", (ROOT / "data_analyst_agent" / "sandbox.py").read_text(encoding="utf-8"))
 
     def test_production_e2e_script_is_available(self) -> None:
         script = ROOT / "scripts" / "production_e2e_check.py"
