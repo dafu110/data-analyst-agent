@@ -5,19 +5,32 @@
 
 一个中文数据分析 Agent / SaaS 原型，用于上传 CSV、Excel 或连接数据库后，自动完成数据画像、字段识别、质量检查、图表建议、业务洞察、报告导出和追问分析。
 
-## 界面截图
+## 项目概览
+
+面向业务分析场景的中文数据 Agent，提供受控的数据画像、分析规划、执行证据和报告导出。
+
+## 界面预览
 
 ![Data Analyst Agent 中文工作台](docs/assets/data-analyst-agent-workbench.png)
 
+## 快速开始
+
+```powershell
+python -m pip install -e .[prod]
+python -m backend.fastapi_app --host 127.0.0.1 --port 8002
+```
+
+打开 `http://127.0.0.1:8002`；OpenAPI 文档位于 `http://127.0.0.1:8002/docs`。
+
 ## 演示与验证
 
-1. 按[快速运行](#快速运行)启动服务，并打开 `http://127.0.0.1:8002`。
+1. 按[快速开始](#快速开始)启动服务，并打开 `http://127.0.0.1:8002`。
 2. 上传 `examples/sales.csv`，确认数据画像和质量检查后生成分析计划。
 3. 审核计划并查看分析详情，确认结论、执行证据和报告导出都可追溯。
 
 截图展示上传前的受控工作台。完整的结果态验证路径见 [销售复盘演示](docs/SALES_REVIEW_DEMO.md)：上传 `examples/sales.csv` 后，先审核数据画像和分析计划，再查看带来源步骤的结论与导出报告。
 
-## `sales.csv` 结果示例
+### `sales.csv` 结果示例
 
 以下结果由 `python -m data_analyst_agent.cli examples\sales.csv --goal "分析销售表现和数据质量"` 生成，可由同一命令复现：
 
@@ -26,7 +39,7 @@
 - 产品结论：`Notebook` 收入最高，为 8820；`Pen` 销量最高，为 285（计算步骤：`revenue-by-product`、`units-by-product`）。
 - 结果边界：样例没有日期字段且不足 30 行，因此生成报告会将趋势、同比和相关性结论标记为需要人工复核。
 
-## 可复现验证
+### 可复现验证
 
 README 不把某次本地测试数量当作持续有效的质量结论。顶部 CI 徽章反映默认分支的当前状态；下面的[测试与验证](#测试与验证)命令可在本地复现单元测试、离线 eval、前端语法检查和导出 smoke。
 
@@ -45,7 +58,7 @@ README 不把某次本地测试数量当作持续有效的质量结论。顶部 
 - 支持 PostgreSQL、Redis/RQ worker、Docker Python 沙箱的生产化配置
 - 内置单元测试、eval 数据集和 FastAPI smoke 端到端测试
 
-## 快速运行
+### 本地运行命令
 
 安装依赖：
 
@@ -71,7 +84,7 @@ OpenAPI 文档：
 http://127.0.0.1:8002/docs
 ```
 
-## 国内安装
+### 国内安装
 
 如果依赖下载慢，可以使用国内镜像：
 
@@ -79,7 +92,7 @@ http://127.0.0.1:8002/docs
 python -m pip install -e .[prod] -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-## 命令行分析
+### 命令行分析
 
 ```powershell
 python -m data_analyst_agent.cli examples\sales.csv --goal "分析销售表现和数据质量"
@@ -180,6 +193,10 @@ $env:DATA_ANALYST_AGENT_REDIS_URL="redis://localhost:6379/0"
 
 当 `DATA_ANALYST_AGENT_ENV` 为 `prod` 或 `production` 时，服务会强制检查 API Token、Docker 沙箱、PostgreSQL 和 Redis/RQ 配置，避免以本地开发默认值裸跑。
 
+## 架构与实现
+
+分析链路由 `data_analyst_agent/` 负责画像、规划、执行与报告生成，`backend/` 提供 API、任务与导出服务，`frontend/` 提供中文工作台。
+
 ## 项目结构
 
 ```text
@@ -203,7 +220,7 @@ docker/                  Python 沙箱镜像和运行脚本
 - [ADR: Sandboxed analysis execution](docs/adr/0001-sandboxed-analysis-execution.md)
 - [更新日志](CHANGELOG.md)
 
-## 建议运行顺序
+### 建议运行顺序
 
 1. 先运行 `python -m unittest discover -s tests`
 2. 再运行 `python -m evals.run_evals`
