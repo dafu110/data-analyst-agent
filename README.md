@@ -12,7 +12,7 @@
 
 | 检查项 | 当前结果 |
 | --- | --- |
-| 单元测试 | `74 tests passed` |
+| 单元测试 | `97 tests passed` |
 | 离线 eval | `6/6 eval cases passed` |
 | 前端语法检查 | `frontend/app.js`、`frontend/labels.js`、`frontend/charts.js` 通过 |
 | 报告导出 smoke | Markdown、HTML、CSV、PDF、PPTX 通过 |
