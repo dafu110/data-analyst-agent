@@ -198,6 +198,10 @@ class DataAnalystAgentTests(unittest.TestCase):
         with self.assertRaises(GuardrailError):
             run_guarded_python(pd.DataFrame(), "result = globals()['__builtins__']")
 
+    def test_python_guardrails_do_not_expose_pandas_file_readers(self) -> None:
+        with self.assertRaises(AttributeError):
+            run_guarded_python(pd.DataFrame(), "result = pd.read_csv('pyproject.toml')")
+
     def test_sql_allows_select_only(self) -> None:
         df = pd.DataFrame({"region": ["North", "South"], "revenue": [10, 20]})
 

@@ -14,6 +14,18 @@ from data_analyst_agent.sandbox import run_python_in_docker
 from data_analyst_agent.sql_safety import validate_readonly_select
 
 
+class PandasAnalysisFacade:
+    """Expose only the pandas primitives used by approved analysis plans."""
+
+    DataFrame = pd.DataFrame
+    Grouper = pd.Grouper
+    to_datetime = staticmethod(pd.to_datetime)
+    to_numeric = staticmethod(pd.to_numeric)
+
+
+SAFE_PANDAS = PandasAnalysisFacade()
+
+
 class ToolRouter:
     def __init__(
         self,
@@ -89,7 +101,7 @@ def run_guarded_python(df: pd.DataFrame, code: str) -> Any:
     validate_python_code(code)
     scope: dict[str, Any] = {
         "df": df.copy(),
-        "pd": pd,
+        "pd": SAFE_PANDAS,
         "len": len,
         "list": list,
         "dict": dict,

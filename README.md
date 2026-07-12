@@ -151,7 +151,7 @@ docker build -f docker/sandbox.Dockerfile -t data-analyst-agent-sandbox:latest .
 $env:DATA_ANALYST_AGENT_EXECUTOR_MODE="docker"
 ```
 
-本地 `in_process` 执行器只用于开发和演示，依赖 AST guard 阻断 import、open、eval、exec、dunder 属性访问和文件写出方法；生产环境必须使用 Docker executor。
+本地 `in_process` 执行器只用于开发和演示，依赖 AST guard，并且仅向计划代码提供内存分析所需的 pandas 门面（`DataFrame`、`Grouper`、`to_datetime`、`to_numeric`）；文件读取器和不安全反序列化入口不会暴露。生产环境必须使用 Docker executor。
 
 ### 生产环境安全基线
 
