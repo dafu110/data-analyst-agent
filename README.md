@@ -62,33 +62,9 @@ README 不把某次本地测试数量当作持续有效的质量结论。顶部 
 
 `data_analyst_agent/` 负责数据画像、分析规划、受控执行与报告生成；`backend/` 提供 API、任务和导出服务；`frontend/` 提供中文工作台。
 
-### 进阶命令
+### 补充命令
 
-安装依赖：
-
-```powershell
-python -m pip install -e .[prod]
-```
-
-启动 FastAPI 服务：
-
-```powershell
-python -m backend.fastapi_app --host 127.0.0.1 --port 8002
-```
-
-打开应用：
-
-```text
-http://127.0.0.1:8002
-```
-
-OpenAPI 文档：
-
-```text
-http://127.0.0.1:8002/docs
-```
-
-### 国内安装
+#### 国内安装
 
 如果依赖下载慢，可以使用国内镜像：
 
@@ -96,7 +72,7 @@ http://127.0.0.1:8002/docs
 python -m pip install -e .[prod] -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-### 命令行分析
+#### 命令行分析
 
 ```powershell
 python -m data_analyst_agent.cli examples\sales.csv --goal "分析销售表现和数据质量"
@@ -155,12 +131,6 @@ $env:DATA_ANALYST_AGENT_DATABASE_URL="postgresql://user:password@localhost:5432/
 $env:DATA_ANALYST_AGENT_REDIS_URL="redis://localhost:6379/0"
 ```
 
-启动 API：
-
-```powershell
-python -m backend.fastapi_app --host 127.0.0.1 --port 8002
-```
-
 启动 worker：
 
 ```powershell
@@ -199,7 +169,7 @@ $env:DATA_ANALYST_AGENT_REDIS_URL="redis://localhost:6379/0"
 
 ## 生产边界
 
-本地 `in_process` 执行器仅用于开发和演示；生产环境需要启用 Docker 沙箱、PostgreSQL、Redis/RQ 和 API Token。
+本地 `in_process` 执行器只用于开发和演示；生产环境的必备配置、Docker 沙箱与外部依赖验收命令均在[部署与生产](#部署与生产)中说明。
 
 ## 项目结构
 
@@ -223,14 +193,6 @@ docker/                  Python 沙箱镜像和运行脚本
 - [Launch hardening checklist](docs/launch-hardening.md)
 - [ADR: Sandboxed analysis execution](docs/adr/0001-sandboxed-analysis-execution.md)
 - [更新日志](CHANGELOG.md)
-
-### 建议运行顺序
-
-1. 先运行 `python -m unittest discover -s tests`
-2. 再运行 `python -m evals.run_evals`
-3. 启动 `python -m backend.fastapi_app --host 127.0.0.1 --port 8002`
-4. 打开 `http://127.0.0.1:8002`
-5. 上传 `examples/sales.csv` 体验完整分析流程
 
 ## 许可证
 
