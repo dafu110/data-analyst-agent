@@ -58,6 +58,10 @@ README 不把某次本地测试数量当作持续有效的质量结论。顶部 
 - 支持 PostgreSQL、Redis/RQ worker、Docker Python 沙箱的生产化配置
 - 内置单元测试、eval 数据集和 FastAPI smoke 端到端测试
 
+## 架构与实现
+
+`data_analyst_agent/` 负责数据画像、分析规划、受控执行与报告生成；`backend/` 提供 API、任务和导出服务；`frontend/` 提供中文工作台。
+
 ### 本地运行命令
 
 安装依赖：
@@ -193,9 +197,13 @@ $env:DATA_ANALYST_AGENT_REDIS_URL="redis://localhost:6379/0"
 
 当 `DATA_ANALYST_AGENT_ENV` 为 `prod` 或 `production` 时，服务会强制检查 API Token、Docker 沙箱、PostgreSQL 和 Redis/RQ 配置，避免以本地开发默认值裸跑。
 
-## 架构与实现
+### 实现细节
 
 分析链路由 `data_analyst_agent/` 负责画像、规划、执行与报告生成，`backend/` 提供 API、任务与导出服务，`frontend/` 提供中文工作台。
+
+## 生产边界
+
+本地 `in_process` 执行器仅用于开发和演示；生产环境需要启用 Docker 沙箱、PostgreSQL、Redis/RQ 和 API Token。
 
 ## 项目结构
 
